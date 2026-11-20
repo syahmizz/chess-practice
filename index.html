@@ -1,0 +1,2407 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Catur Petang">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#e9edf1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f141a" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{-webkit-text-size-adjust:100%;touch-action:manipulation}
+body{margin:0;font:14px system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<title>Catur Petang</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Zilla+Slab:wght@600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Symbols+2&text=%E2%99%9A%E2%99%9B%E2%99%9C%E2%99%9D%E2%99%9E%E2%99%9F&display=block">
+<style>
+/* Layout: board left, play panel right (suggestion → entry → moves → settings); one column under 820px, board first */
+:root{
+  --bg:#e9edf1;
+  --panel:#f8fafb;
+  --ink:#16202b;
+  --muted:#5b6979;
+  --line:#d2d9e1;
+  --sq-l:#dde4eb;
+  --sq-d:#7f95ad;
+  --accent:#e9a21a;
+  --accent-ink:#8c5b00;
+  --on-accent:#16202b;
+  --hl:rgba(233,162,26,.38);
+  --sel:rgba(233,162,26,.62);
+  --dot:rgba(16,24,32,.28);
+  --check:#d64535;
+  --bad:#b8392e;
+  --good:#2f8a57;
+  --c-best:#2f8a57;
+  --c-good:#3f7f96;
+  --c-inacc:#8f6c00;
+  --c-mistake:#c25a12;
+  --c-blunder:#c0322a;
+  --chip-ink:#ffffff;
+  --pw:#fbfbf8;
+  --pw-edge:#1b2530;
+  --pb:#18212b;
+  --shadow:rgba(16,24,32,.28);
+  --font-display:'Zilla Slab', Rockwell, 'Roboto Slab', Georgia, serif;
+  --font-body:'Figtree', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono:'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-piece:'Noto Sans Symbols 2', 'Segoe UI Symbol', 'Apple Symbols', 'DejaVu Sans', sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f141a; --panel:#171e26; --ink:#e5ebf1; --muted:#93a1b0; --line:#2a3540;
+    --sq-l:#c9d2dc; --sq-d:#5d7591; --accent:#f0b235; --accent-ink:#f3c25c; --on-accent:#16202b;
+    --hl:rgba(240,178,53,.42); --sel:rgba(240,178,53,.66); --dot:rgba(10,14,20,.38);
+    --check:#e0503f; --bad:#f07a6c; --good:#5cc48a; --shadow:rgba(0,0,0,.55);
+    --c-best:#5cc48a; --c-good:#73b9d0; --c-inacc:#e3bd45; --c-mistake:#f28c4c; --c-blunder:#f2685a; --chip-ink:#10161d;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f141a; --panel:#171e26; --ink:#e5ebf1; --muted:#93a1b0; --line:#2a3540;
+  --sq-l:#c9d2dc; --sq-d:#5d7591; --accent:#f0b235; --accent-ink:#f3c25c; --on-accent:#16202b;
+  --hl:rgba(240,178,53,.42); --sel:rgba(240,178,53,.66); --dot:rgba(10,14,20,.38);
+  --check:#e0503f; --bad:#f07a6c; --good:#5cc48a; --shadow:rgba(0,0,0,.55);
+  --c-best:#5cc48a; --c-good:#73b9d0; --c-inacc:#e3bd45; --c-mistake:#f28c4c; --c-blunder:#f2685a; --chip-ink:#10161d;
+  color-scheme:dark;
+}
+
+html,body{background:var(--bg);color:var(--ink)}
+body{
+  font-family:var(--font-body);font-size:15px;line-height:1.5;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+  padding-block:20px 48px;
+  -webkit-tap-highlight-color:transparent;
+}
+button{font:inherit;color:inherit;cursor:pointer}
+button:disabled{cursor:default}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+.app{max-width:1060px;margin:0 auto;display:grid;gap:20px}
+
+/* header */
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px}
+h1{font-family:var(--font-display);font-weight:700;font-size:clamp(28px,4.2vw,38px);line-height:1.05;letter-spacing:-.01em;margin:0;text-wrap:balance}
+.sub{margin:4px 0 0;color:var(--muted);max-width:52ch}
+.side{display:flex;flex-wrap:wrap;align-items:center;gap:10px 20px}
+.ctl{display:flex;align-items:center;gap:10px}
+.lbl{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;background:var(--panel);padding:3px;gap:2px}
+.seg button{border:0;background:transparent;border-radius:6px;padding:7px 13px;font-weight:600;font-size:14px;color:var(--muted);display:inline-flex;align-items:center;gap:7px;line-height:1.2}
+.seg button small{font-family:var(--font-mono);font-weight:500;font-size:11px;opacity:.75}
+.seg button:hover{color:var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.sw{width:11px;height:11px;border-radius:50%;border:1.5px solid currentColor;display:inline-block}
+.sw.w{background:#fbfbf8}
+.sw.b{background:#18212b}
+
+/* main grid */
+.main{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,380px);gap:28px;align-items:start}
+@media (max-width:820px){.main{grid-template-columns:minmax(0,1fr);gap:20px}}
+
+/* board */
+.board-col{min-width:0;display:grid;justify-items:center;gap:10px}
+.board-wrap{position:relative;width:100%;max-width:620px;aspect-ratio:1;container-type:inline-size;border-radius:6px;overflow:hidden;box-shadow:0 0 0 1px var(--line),0 14px 34px -16px var(--shadow)}
+#board{position:absolute;inset:0;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));grid-template-rows:repeat(8,minmax(0,1fr));touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.sq.hover{box-shadow:inset 0 0 0 4px rgba(255,255,255,.8);box-shadow:inset 0 0 0 .7cqw rgba(255,255,255,.8)}
+.sq.dragging .pc{opacity:.28}
+.pc.drag-ghost{position:absolute;z-index:6;left:0;top:0;font-size:clamp(30px,10.5vw,66px);font-size:11.6cqw;transform:translate(-50%,-56%);pointer-events:none;filter:drop-shadow(0 6px 6px rgba(0,0,0,.3))}
+.board-bar{width:100%;max-width:620px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+.board-wrap.editing{box-shadow:0 0 0 3px var(--accent),0 14px 34px -16px var(--shadow)}
+
+/* board editor */
+.setup{gap:14px}
+.setup h3{font-family:var(--font-display);font-size:28px;line-height:1.1;margin:0}
+.setup .hint b{color:var(--ink)}
+.pal{display:grid;gap:6px}
+.pal-tools{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.pal-row{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}
+.pal button{border:1px solid var(--line);border-radius:8px;min-width:0;padding:0;color:var(--ink)}
+.pal-row button{aspect-ratio:1;max-width:100%;background:var(--sq-l);display:grid;place-items:center}
+.pal-tools button{background:var(--panel);padding:9px 10px;font-weight:600;font-size:14px}
+.pal button:hover{border-color:var(--ink)}
+.pal button[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.pal-tools button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.pal .pc{font-size:clamp(24px,7vw,34px);transform:translateY(4%)}
+.setup-acts{display:flex;flex-wrap:wrap;gap:6px}
+.setup-turn{display:grid;gap:6px}
+.setup .promo-cancel{justify-self:center}
+.fenbox .row input{font-size:12.5px;padding:10px 11px}
+.nudge{margin:0;width:100%;max-width:620px;box-sizing:border-box;font-size:14px;background:var(--hl);color:var(--ink);border-radius:8px;padding:8px 12px}
+.promo{position:absolute;inset:0;z-index:8;display:grid;place-items:center;background:rgba(10,14,20,.55);padding:16px}
+.promo-box{background:var(--panel);color:var(--ink);border-radius:12px;padding:16px;display:grid;gap:12px;justify-items:center;box-shadow:0 20px 40px -10px rgba(0,0,0,.5)}
+.promo-box p{margin:0;font-weight:700}
+.promo-row{display:flex;gap:8px}
+.promo-row button{width:min(17cqw,84px);aspect-ratio:1;border-radius:10px;border:1px solid var(--line);background:var(--sq-l);display:grid;place-items:center;padding:0}
+.promo-row button:hover{border-color:var(--accent);background:var(--sq-d)}
+.promo-row .pc{font-size:clamp(28px,11vw,60px);font-size:12cqw}
+.promo-cancel{border:0;background:transparent;color:var(--muted);font-weight:600;text-decoration:underline;padding:4px 8px}
+.sq{appearance:none;border:0;margin:0;padding:0;position:relative;display:grid;place-items:center;min-width:0;min-height:0;cursor:pointer}
+.sq.light{background-color:var(--sq-l)}
+.sq.dark{background-color:var(--sq-d)}
+.sq.last{background-image:linear-gradient(var(--hl),var(--hl))}
+.sq.sel{background-image:linear-gradient(var(--sel),var(--sel))}
+.sq.check{background-image:radial-gradient(circle,var(--check) 0 28%,transparent 72%)}
+.sq:focus-visible{outline:3px solid var(--accent);outline-offset:-3px;z-index:4}
+.sq .dot{display:none;position:absolute;width:28%;height:28%;border-radius:50%;background:var(--dot);z-index:2;pointer-events:none}
+.sq.target .dot{display:block}
+.sq.target.cap .dot{width:90%;height:90%;background:transparent;box-shadow:inset 0 0 0 5px var(--dot);box-shadow:inset 0 0 0 .9cqw var(--dot)}
+.pc{font-family:var(--font-piece);font-size:clamp(26px,9vw,58px);font-size:9.8cqw;line-height:1;pointer-events:none;position:relative;z-index:1;transform:translateY(3%);user-select:none}
+.pc.w{color:var(--pw);text-shadow:1px 0 0 var(--pw-edge),-1px 0 0 var(--pw-edge),0 1px 0 var(--pw-edge),0 -1px 0 var(--pw-edge),1px 1px 0 var(--pw-edge),-1px -1px 0 var(--pw-edge),1px -1px 0 var(--pw-edge),-1px 1px 0 var(--pw-edge),0 3px 4px rgba(0,0,0,.28)}
+.pc.b{color:var(--pb);text-shadow:0 1px 0 rgba(255,255,255,.22),0 3px 4px rgba(0,0,0,.28)}
+.sq[data-rank]::before,.sq[data-file]::after{position:absolute;font-family:var(--font-mono);font-weight:700;font-size:10px;font-size:2.3cqw;line-height:1;pointer-events:none}
+.sq[data-rank]::before{content:attr(data-rank);top:5%;left:6%}
+.sq[data-file]::after{content:attr(data-file);bottom:5%;right:7%}
+.sq.light::before,.sq.light::after{color:var(--sq-d)}
+.sq.dark::before,.sq.dark::after{color:var(--sq-l)}
+#arrows{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:3}
+#arrows polygon{fill:var(--accent);opacity:.9;stroke:rgba(16,24,32,.35);stroke-width:.025;stroke-linejoin:round;transition:opacity .25s}
+#arrows polygon.live{opacity:.5}
+
+/* panel */
+.panel{min-width:0;display:grid;gap:18px}
+.turn{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.turn .dot{width:13px;height:13px;border-radius:50%;border:1.5px solid var(--ink)}
+.turn .dot.w{background:#fbfbf8}
+.turn .dot.b{background:#18212b}
+.turn.mine{color:var(--ink)}
+
+.card{position:relative;overflow:hidden;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 18px 16px;display:grid;gap:10px}
+.progress{position:absolute;inset:0 0 auto;height:3px;transition:opacity .4s}
+.progress i{display:block;height:100%;width:0;background:var(--accent)}
+.card:not(.is-thinking) .progress{opacity:0}
+@keyframes grow{from{width:0}to{width:100%}}
+.ctx{margin:0;color:var(--muted);font-size:14px;min-height:1.5em}
+.ctx b{font-family:var(--font-mono);color:var(--ink);font-weight:700}
+.kicker{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-ink)}
+.kicker #status{font-family:var(--font-mono);font-weight:500;letter-spacing:0;text-transform:none;color:var(--muted);font-size:12px}
+.san{font-family:var(--font-mono);font-weight:700;font-size:clamp(44px,7vw,60px);line-height:1;letter-spacing:-.03em;transition:opacity .2s}
+.is-thinking .san{opacity:.55}
+.words{margin:0;font-size:15px;color:var(--muted)}
+.evalbar{height:8px;border-radius:4px;background:var(--line);overflow:hidden;margin-top:4px}
+.evalbar i{display:block;height:100%;width:50%;background:var(--ink);border-radius:4px;transition:width .35s ease}
+.evalrow{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:14px}
+.evalrow #verdict{font-weight:600}
+.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px}
+.line{margin:0;font-family:var(--font-mono);font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.line span{color:var(--ink)}
+.btn-primary{margin-top:4px;border:0;border-radius:9px;padding:13px 16px;background:var(--accent);color:var(--on-accent);font-weight:700;font-size:16px;width:100%}
+.btn-primary:hover:not(:disabled){filter:brightness(1.06)}
+.btn-primary:disabled{opacity:.45}
+
+.over h3,.wait h3{font-family:var(--font-display);font-size:28px;line-height:1.1;margin:0}
+.over p{margin:0;color:var(--muted)}
+.wait .words b{color:var(--ink)}
+.alt{margin:0;font-size:13px;color:var(--muted);text-align:center}
+
+.typer{border-top:1px solid var(--line);padding-top:12px}
+.typer summary{cursor:pointer;font-size:14px;font-weight:600;color:var(--muted);list-style:none;display:flex;align-items:center;gap:8px}
+.typer summary::-webkit-details-marker{display:none}
+.typer summary::before{content:"";width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);transition:transform .15s}
+.typer[open] summary::before{transform:rotate(45deg)}
+.typer summary:hover{color:var(--ink)}
+.typer[open] .entry{margin-top:12px}
+.entry{display:grid;gap:10px}
+.entry label{font-weight:700;font-size:15px;line-height:1.2}
+.row{display:flex;gap:8px}
+.row input{flex:1;min-width:0;font-family:var(--font-mono);font-size:18px;font-weight:500;padding:11px 13px;border-radius:9px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink)}
+.row input::placeholder{color:var(--muted);opacity:.7}
+.row input:focus{outline:none;border-color:var(--accent)}
+.btn-dark{border:0;border-radius:9px;padding:0 18px;background:var(--ink);color:var(--bg);font-weight:700}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips:empty{display:none}
+.chip{font-family:var(--font-mono);font-size:14px;font-weight:500;padding:6px 11px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+.chip:hover{border-color:var(--accent)}
+.msg{margin:0;font-size:14px;color:var(--bad)}
+.msg:empty{display:none}
+.msg.note{color:var(--muted)}
+.hint{margin:0;font-size:13px;color:var(--muted)}
+.hint code{font-family:var(--font-mono);font-size:12.5px;color:var(--ink)}
+
+.block{display:grid;gap:10px}
+.block-h{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+h2{margin:0;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h2 small{font-weight:500;letter-spacing:0;text-transform:none}
+.acts{display:flex;gap:6px}
+.ghost{border:1px solid var(--line);background:transparent;border-radius:8px;padding:6px 12px;font-size:14px;font-weight:600}
+.ghost:hover:not(:disabled){border-color:var(--ink)}
+.ghost:disabled{opacity:.4}
+.ghost.warn{border-color:var(--bad);color:var(--bad)}
+.moves{max-height:216px;overflow:auto;display:grid;grid-template-columns:4ch minmax(0,1fr) minmax(0,1fr);gap:3px 12px;font-family:var(--font-mono);font-size:14px;font-variant-numeric:tabular-nums;border-top:1px solid var(--line);padding-top:10px}
+.moves .n{color:var(--muted)}
+.moves span{color:var(--muted)}
+.moves .mine{color:var(--ink);font-weight:700}
+.moves .last{background:var(--hl);border-radius:4px;padding:0 4px;margin:0 -4px;justify-self:start}
+.moves .empty{grid-column:1/-1;margin:0;font-family:var(--font-body);color:var(--muted)}
+.seg-full{display:flex;width:100%;box-sizing:border-box}
+.seg-full button{flex:1 1 0;min-width:0;justify-content:center;padding:8px 4px;font-size:13.5px}
+.lvdesc{margin:0;font-size:13.5px;color:var(--muted)}
+.speedrow{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px}
+.engine{margin:0;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.edot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.engine.ok .edot{background:var(--good)}
+.engine.loading .edot{animation:pulse 1s ease-in-out infinite alternate}
+@keyframes pulse{to{opacity:.25}}
+.foot{margin:0;font-size:12.5px;color:var(--muted)}
+
+@media (prefers-reduced-motion: reduce){
+  *{transition:none!important}
+  .progress{display:none}
+  .engine.loading .edot{animation:none}
+}
+/* practice mode */
+.duel{gap:8px}
+.duel .progress i{width:38%;animation:slide 1.3s ease-in-out infinite}
+@keyframes slide{from{transform:translateX(-100%)}to{transform:translateX(270%)}}
+.duel .now{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.duel .now p{margin:0;font-weight:600;font-size:16px}
+.say{margin:0;font-size:15px;line-height:1.45;background:var(--bg);border-radius:12px 12px 12px 4px;padding:9px 12px;justify-self:start;max-width:100%;box-sizing:border-box}
+.say small{display:block;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+.note-line{margin:0;font-size:13.5px;color:var(--muted)}
+.review{gap:10px}
+.rv-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.rv-head .san{font-size:clamp(36px,6vw,48px)}
+.cls{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 12px;font-weight:700;font-size:14px;line-height:1.2;background:var(--line);color:var(--ink)}
+.cls[data-cls="best"]{background:var(--c-best);color:var(--chip-ink)}
+.cls[data-cls="good"]{background:var(--c-good);color:var(--chip-ink)}
+.cls[data-cls="inacc"]{background:var(--c-inacc);color:var(--chip-ink)}
+.cls[data-cls="mistake"]{background:var(--c-mistake);color:var(--chip-ink)}
+.cls[data-cls="blunder"]{background:var(--c-blunder);color:var(--chip-ink)}
+.rv-eval{margin:0;font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:14px;color:var(--muted)}
+.rv-eval b{color:var(--ink)}
+.rv-best,.rv-reply,.rv-note{margin:0;font-size:14px;color:var(--muted);overflow-wrap:anywhere}
+.rv-best b,.rv-reply b{font-family:var(--font-mono);color:var(--ink)}
+.rv-explain{margin:0;font-size:15px;line-height:1.55;background:var(--bg);border-radius:10px;padding:10px 12px;color:var(--ink);white-space:pre-wrap}
+.rv-explain small{display:block;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;white-space:normal}
+.rv-explain.wait{color:var(--muted)}
+.rv-acts{display:flex;gap:6px;flex-wrap:wrap}
+.over-stats{display:flex;flex-wrap:wrap;gap:6px}
+.over-stats:empty{display:none}
+.moves .mv{appearance:none;border:0;background:none;padding:0;font:inherit;color:var(--ink);font-weight:700;text-align:left;cursor:pointer;justify-self:start}
+.moves .mv:hover{text-decoration:underline}
+.moves .mv.cls-inacc{color:var(--c-inacc)}
+.moves .mv.cls-mistake{color:var(--c-mistake)}
+.moves .mv.cls-blunder{color:var(--c-blunder)}
+.moves .mv.viewing{outline:2px solid var(--accent);outline-offset:1px;border-radius:3px}
+.moves .mk{font-size:12px;margin-left:1px}
+.moves span.last{color:var(--ink)}
+
+/* settings */
+.set{display:grid;gap:6px}
+.setdesc{margin:0;font-size:13.5px;color:var(--muted)}
+.ai-status{margin:0;font-size:13.5px;color:var(--muted);display:flex;gap:8px;align-items:flex-start}
+.ai-status .edot{flex:none;margin-top:6px}
+.ai-status.ok .edot{background:var(--good)}
+.ai-status.off .edot{background:var(--bad)}
+.keyform{display:grid;gap:8px}
+.keyform label{font-weight:700;font-size:14px}
+.keyform .row input{font-size:14px}
+.seg button:disabled{opacity:.45}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="top">
+    <div>
+      <h1>Catur Petang</h1>
+      <p class="sub" id="sub">Main dengan member, Claude atau Stockfish cadangkan move. Atau latih diri lawan mereka, dengan review setiap move.</p>
+    </div>
+    <div class="side">
+      <div class="ctl">
+        <span class="lbl" id="modeLbl">Mode</span>
+        <div class="seg" id="modeSeg" role="group" aria-labelledby="modeLbl">
+          <button type="button" id="mode-bantu" data-mode="bantu" aria-pressed="true">Bantu</button>
+          <button type="button" id="mode-latihan" data-mode="latihan" aria-pressed="false">Latihan</button>
+        </div>
+      </div>
+      <div class="ctl">
+        <span class="lbl" id="sideLbl">Aku main</span>
+        <div class="seg" id="sideSeg" role="group" aria-labelledby="sideLbl">
+          <button type="button" id="side-w" data-side="w" aria-pressed="true"><i class="sw w"></i>Putih</button>
+          <button type="button" id="side-b" data-side="b" aria-pressed="false"><i class="sw b"></i>Hitam</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="main">
+    <section class="board-col" aria-label="Papan catur">
+      <div class="board-wrap" id="wrap">
+        <div id="board"></div>
+        <svg id="arrows" viewBox="0 0 8 8" aria-hidden="true"></svg>
+        <span class="pc drag-ghost" id="ghost" hidden></span>
+        <div class="promo" id="promo" hidden>
+          <div class="promo-box" role="dialog" aria-label="Pilih piece untuk promote">
+            <p>Pawn naik jadi apa?</p>
+            <div class="promo-row" id="promoRow"></div>
+            <button type="button" class="promo-cancel" id="promoCancel">Batal</button>
+          </div>
+        </div>
+      </div>
+      <div class="board-bar">
+        <div class="turn" id="turn"><i class="dot w"></i><span>Giliran kau · Putih</span></div>
+        <div class="acts">
+          <button type="button" class="ghost" id="setupBtn">Susun papan</button>
+          <button type="button" class="ghost" id="undo">↶ Undo</button>
+        </div>
+      </div>
+      <p class="nudge" id="nudge" role="status" hidden></p>
+    </section>
+
+    <section class="panel">
+      <article class="card setup" id="setupCard" hidden>
+        <div class="kicker"><span>Susun papan</span></div>
+        <div class="pal" id="palette" role="group" aria-label="Alat susun">
+          <div class="pal-tools">
+            <button type="button" id="tool-move" data-tool="move" aria-pressed="true">Gerak</button>
+            <button type="button" id="tool-erase" data-tool="erase" aria-pressed="false">Padam</button>
+          </div>
+          <div class="pal-row">
+            <button type="button" id="tool-wk" data-tool="wk" aria-label="King Putih"><span class="pc w">&#x265A;&#xFE0E;</span></button>
+            <button type="button" id="tool-wq" data-tool="wq" aria-label="Queen Putih"><span class="pc w">&#x265B;&#xFE0E;</span></button>
+            <button type="button" id="tool-wr" data-tool="wr" aria-label="Rook Putih"><span class="pc w">&#x265C;&#xFE0E;</span></button>
+            <button type="button" id="tool-wb" data-tool="wb" aria-label="Bishop Putih"><span class="pc w">&#x265D;&#xFE0E;</span></button>
+            <button type="button" id="tool-wn" data-tool="wn" aria-label="Knight Putih"><span class="pc w">&#x265E;&#xFE0E;</span></button>
+            <button type="button" id="tool-wp" data-tool="wp" aria-label="Pawn Putih"><span class="pc w">&#x265F;&#xFE0E;</span></button>
+          </div>
+          <div class="pal-row">
+            <button type="button" id="tool-bk" data-tool="bk" aria-label="King Hitam"><span class="pc b">&#x265A;&#xFE0E;</span></button>
+            <button type="button" id="tool-bq" data-tool="bq" aria-label="Queen Hitam"><span class="pc b">&#x265B;&#xFE0E;</span></button>
+            <button type="button" id="tool-br" data-tool="br" aria-label="Rook Hitam"><span class="pc b">&#x265C;&#xFE0E;</span></button>
+            <button type="button" id="tool-bb" data-tool="bb" aria-label="Bishop Hitam"><span class="pc b">&#x265D;&#xFE0E;</span></button>
+            <button type="button" id="tool-bn" data-tool="bn" aria-label="Knight Hitam"><span class="pc b">&#x265E;&#xFE0E;</span></button>
+            <button type="button" id="tool-bp" data-tool="bp" aria-label="Pawn Hitam"><span class="pc b">&#x265F;&#xFE0E;</span></button>
+          </div>
+        </div>
+        <p class="hint">Pilih piece, lepas tu tap petak untuk letak. Tap lagi untuk buang. Dengan <b>Gerak</b>, drag piece ke mana-mana, atau drag keluar papan untuk buang.</p>
+        <div class="setup-acts">
+          <button type="button" class="ghost" id="setupStart">Posisi mula</button>
+          <button type="button" class="ghost" id="setupClear">Kosongkan</button>
+        </div>
+        <div class="setup-turn">
+          <span class="lbl" id="turnLbl">Giliran siapa?</span>
+          <div class="seg seg-full" id="turnSeg" role="group" aria-labelledby="turnLbl">
+            <button type="button" id="turnMine" data-mine="1" aria-pressed="true">Aku · Putih</button>
+            <button type="button" id="turnOpp" data-mine="0" aria-pressed="false">Lawan · Hitam</button>
+          </div>
+        </div>
+        <p class="msg" id="setupMsg" role="status"></p>
+        <button type="button" class="btn-primary" id="setupDone">Siap, cari move</button>
+        <button type="button" class="promo-cancel" id="setupCancel">Batal, balik ke game tadi</button>
+        <details class="typer fenbox" id="fenBox">
+          <summary>FEN (copy atau paste posisi)</summary>
+          <form class="entry" id="fenForm" autocomplete="off">
+            <div class="row">
+              <input id="fenIn" name="fen" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="FEN">
+              <button type="submit" class="btn-dark" id="fenGo">Guna</button>
+            </div>
+            <p class="msg" id="fenMsg" role="status"></p>
+          </form>
+        </details>
+      </article>
+
+      <article class="card duel" id="duel" hidden>
+        <div class="progress"><i></i></div>
+        <div class="kicker"><span id="duelKick">Lawan · Stockfish</span><span id="duelStatus"></span></div>
+        <p class="ctx" id="oppLine"></p>
+        <p class="say" id="oppSay" hidden></p>
+        <p class="note-line" id="oppNote" hidden></p>
+        <div class="now">
+          <p id="duelNow">Giliran kau. Gerak piece kat papan.</p>
+          <button type="button" class="ghost" id="hintBtn">Tunjuk hint</button>
+        </div>
+      </article>
+
+      <article class="card review" id="reviewCard" hidden aria-live="polite">
+        <div class="kicker"><span id="rvKick">Review move kau</span><span id="rvStatus"></span></div>
+        <div class="rv-head">
+          <span class="san" id="rvSan">e4</span>
+          <span class="cls" id="rvCls" data-cls="">…</span>
+        </div>
+        <p class="rv-eval" id="rvEval"></p>
+        <p class="rv-best" id="rvBest"></p>
+        <p class="rv-reply" id="rvReply"></p>
+        <p class="rv-note" id="rvNote" hidden></p>
+        <p class="rv-explain" id="rvExplain" hidden></p>
+        <div class="rv-acts">
+          <button type="button" class="ghost" id="rvAsk" hidden>Tanya Claude kenapa</button>
+          <button type="button" class="ghost" id="rvLatest" hidden>Balik ke move terkini</button>
+        </div>
+      </article>
+
+      <article class="card wait" id="wait" hidden>
+        <p class="ctx" id="waitCtx"></p>
+        <h3>Lawan main apa?</h3>
+        <p class="words">Gerakkan piece <b id="oppName">Hitam</b> kat papan ikut apa member kau main. Drag piece, atau tap piece lepas tu tap petak.</p>
+      </article>
+
+      <article class="card is-thinking" id="suggest" aria-live="polite">
+        <div class="progress"><i id="bar"></i></div>
+        <p class="ctx" id="ctx">Kau buka dulu.</p>
+        <div class="kicker"><span id="kick">Best move untuk kau</span><span id="status">load enjin…</span></div>
+        <div class="san" id="san">· · ·</div>
+        <p class="words" id="words">Kali pertama ambil masa sikit untuk load Stockfish.</p>
+        <div class="evalbar" aria-hidden="true"><i id="evalFill"></i></div>
+        <div class="evalrow"><span id="verdict">&nbsp;</span><span class="num" id="evalnum"></span></div>
+        <p class="line" id="pv"></p>
+        <button type="button" class="btn-primary" id="playBest" disabled>Main move ni</button>
+        <p class="alt">Nak main lain? Gerak je piece kau kat papan.</p>
+      </article>
+
+      <article class="card over" id="over" hidden>
+        <h3 id="overTitle">Game tamat</h3>
+        <p id="overSub"></p>
+        <div class="over-stats" id="overStats"></div>
+        <button type="button" class="btn-primary" id="newGame2">Game baru</button>
+      </article>
+
+      <details class="typer" id="typer">
+        <summary>Taip move (atau paste banyak move sekali)</summary>
+        <form class="entry" id="entry" autocomplete="off">
+          <label for="mv" id="entryLabel">Move lawan</label>
+          <div class="row">
+            <input id="mv" name="mv" type="text" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go" placeholder="contoh: e5">
+            <button type="submit" class="btn-dark" id="submitMv">Masuk</button>
+          </div>
+          <div class="chips" id="chips"></div>
+          <p class="msg" id="msg" role="status"></p>
+          <p class="hint" id="hint"></p>
+        </form>
+      </details>
+
+      <div class="block" id="movesBlock">
+        <div class="block-h">
+          <h2>Move <small>(tebal = kau)</small></h2>
+          <div class="acts">
+            <button type="button" class="ghost" id="newGame">Game baru</button>
+          </div>
+        </div>
+        <div class="moves" id="moves"><p class="empty">Belum ada move lagi.</p></div>
+      </div>
+
+      <div class="block" id="settings">
+        <div class="set" id="setBrain">
+          <h2 id="brainLbl">Siapa bagi cadangan</h2>
+          <div class="seg seg-full" id="brainSeg" role="group" aria-labelledby="brainLbl">
+            <button type="button" id="brain-sf" data-brain="sf" aria-pressed="true">Stockfish</button>
+            <button type="button" id="brain-claude" data-brain="claude" aria-pressed="false">Claude</button>
+          </div>
+          <p class="setdesc" id="brainDesc"></p>
+        </div>
+        <div class="set" id="setOpp" hidden>
+          <h2 id="oppLbl">Lawan aku</h2>
+          <div class="seg seg-full" id="oppSeg" role="group" aria-labelledby="oppLbl">
+            <button type="button" id="opp-sf" data-opp="sf" aria-pressed="true">Stockfish</button>
+            <button type="button" id="opp-claude" data-opp="claude" aria-pressed="false">Claude</button>
+          </div>
+          <p class="setdesc" id="oppDesc"></p>
+        </div>
+        <div class="set" id="setExplain" hidden>
+          <h2 id="explainLbl">Claude terangkan move aku</h2>
+          <div class="seg seg-full" id="explainSeg" role="group" aria-labelledby="explainLbl">
+            <button type="button" id="ex-semua" data-explain="semua" aria-pressed="false">Setiap move</button>
+            <button type="button" id="ex-silap" data-explain="silap" aria-pressed="true">Bila silap</button>
+            <button type="button" id="ex-tutup" data-explain="tutup" aria-pressed="false">Tutup</button>
+          </div>
+          <p class="setdesc">Nilai setiap move (Terbaik sampai Blunder) dikira Stockfish. Claude terangkan kenapa.</p>
+        </div>
+        <div class="set" id="setTier">
+          <h2 id="tierLbl">Claude fikir</h2>
+          <div class="seg seg-full" id="tierSeg" role="group" aria-labelledby="tierLbl">
+            <button type="button" id="tier-quick" data-tier="quick" aria-pressed="false">Laju</button>
+            <button type="button" id="tier-default" data-tier="default" aria-pressed="true">Biasa</button>
+            <button type="button" id="tier-complex" data-tier="complex" aria-pressed="false">Dalam</button>
+          </div>
+          <p class="setdesc" id="tierDesc"></p>
+          <p class="ai-status" id="aiStatus"><i class="edot"></i><span>Tengah sambung ke Claude…</span></p>
+          <form class="keyform" id="keyForm" autocomplete="off" hidden>
+            <label for="apiKey">API key Anthropic</label>
+            <div class="row">
+              <input id="apiKey" name="apiKey" type="password" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="sk-ant-…">
+              <button type="submit" class="btn-dark" id="keySave">Simpan</button>
+            </div>
+            <button type="button" class="promo-cancel" id="keyClear" hidden>Padam key dari phone ni</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="block" id="levelBlock">
+        <div class="block-h"><h2 id="levelLbl">Level Stockfish</h2></div>
+        <div class="seg seg-full" id="levelSeg" role="group" aria-labelledby="levelLbl">
+          <button type="button" id="lv-santai" data-level="santai" aria-pressed="false">Santai</button>
+          <button type="button" id="lv-sederhana" data-level="sederhana" aria-pressed="false">Sederhana</button>
+          <button type="button" id="lv-kuat" data-level="kuat" aria-pressed="false">Kuat</button>
+          <button type="button" id="lv-penuh" data-level="penuh" aria-pressed="true">Penuh</button>
+        </div>
+        <p class="lvdesc" id="levelDesc">Stockfish full power. Pilih berapa lama dia fikir.</p>
+        <div class="speedrow" id="speedRow">
+          <span class="lbl" id="speedLbl">Masa fikir</span>
+          <div class="seg" id="speedSeg" role="group" aria-labelledby="speedLbl">
+            <button type="button" id="sp-fast" data-speed="fast" aria-pressed="false">Laju <small>0.7s</small></button>
+            <button type="button" id="sp-normal" data-speed="normal" aria-pressed="true">Biasa <small>1.8s</small></button>
+            <button type="button" id="sp-deep" data-speed="deep" aria-pressed="false">Dalam <small>4.5s</small></button>
+          </div>
+        </div>
+        <p class="engine loading" id="engine"><i class="edot"></i><span>Tengah load Stockfish…</span></p>
+        <p class="foot">Stockfish jalan dalam browser kau sendiri. Game dan review disimpan dalam browser ni, jadi refresh pun tak hilang.</p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="chess.js"></script>
+<script>
+(function(){
+'use strict';
+
+/*PURE-START*/
+var PNAME = {k:'King', q:'Queen', r:'Rook', b:'Bishop', n:'Knight', p:'Pawn'};
+
+function cleanSan(x){ return x.replace(/[+#]/g, ''); }
+function moveKey(x){ return cleanSan(x).replace(/[x=\-]/g, '').toLowerCase(); }
+
+// Split pasted text like "1. e4 e5 2. Nf3" into move tokens
+function tokenize(raw){
+  return String(raw)
+    .replace(/\{[^}]*\}/g, ' ')
+    .replace(/\d+\.(\.\.)?/g, ' ')
+    .split(/[\s,;]+/)
+    .filter(function(t){ return t && !/^(1-0|0-1|1\/2-1\/2|\*)$/.test(t); });
+}
+
+// Turn one typed token into a legal verbose move for the side to move, or an error
+function resolveMove(g, tok){
+  var s = String(tok).trim().replace(/[!?]+$/, '').replace(/[+#]+$/, '');
+  if (!s) return {error:'Kosong.'};
+  if (/^[0oO]-?[0oO](-?[0oO])?$/.test(s)) s = s.replace(/-/g, '').length === 3 ? 'O-O-O' : 'O-O';
+  var legal = g.moves({verbose:true});
+  var hit = legal.filter(function(m){ return cleanSan(m.san) === s; });
+  if (hit.length === 1) return {move:hit[0]};
+
+  var c = s.toLowerCase().match(/^([a-h][1-8])[-x]?([a-h][1-8])=?([qrbn])?$/);
+  if (c){
+    hit = legal.filter(function(m){ return m.from === c[1] && m.to === c[2] && (!m.promotion || m.promotion === (c[3] || 'q')); });
+    if (hit.length) return {move:hit[0]};
+  }
+
+  var k = moveKey(s);
+  var upPiece = /^[KQRBN]/.test(s) ? s[0].toLowerCase() : null;
+  hit = legal.filter(function(m){ return moveKey(m.san) === k && (!upPiece || m.piece === upPiece); });
+  if (hit.length === 1) return {move:hit[0]};
+  if (hit.length > 1) return {error:'Kurang jelas: ' + hit.map(function(m){ return m.san; }).join(' atau ') + '? Taip yang tepat atau tap salah satu.'};
+
+  var m2 = s.match(/^([kqrbnKQRBN])?[a-h]?[1-8]?x?([a-h][1-8])(=?[qrbnQRBN])?$/);
+  if (m2){
+    var piece = m2[1] ? m2[1].toLowerCase() : 'p';
+    hit = legal.filter(function(m){ return m.to === m2[2] && m.piece === piece; });
+    if (hit.length === 1) return {move:hit[0]};
+    if (hit.length > 1 && hit[0].promotion){
+      var want = m2[3] ? m2[3].replace('=', '').toLowerCase() : 'q';
+      var pm = hit.filter(function(m){ return m.promotion === want; })[0];
+      if (pm) return {move:pm};
+    }
+    if (hit.length > 1 && !hit[0].promotion) return {error:'Lebih dari satu ' + PNAME[piece] + ' boleh ke ' + m2[2] + ': ' + hit.map(function(m){ return m.san; }).join(' atau ') + '.'};
+  }
+  return {error:'"' + tok + '" tak sah untuk ' + (g.turn() === 'w' ? 'Putih' : 'Hitam') + ' sekarang.'};
+}
+
+function parseInfo(line){
+  var t = line.split(' ');
+  var o = {depth:0, score:null, pv:[], multipv:1};
+  for (var i = 1; i < t.length; i++){
+    var k = t[i];
+    if (k === 'depth') o.depth = +t[++i];
+    else if (k === 'multipv') o.multipv = +t[++i];
+    else if (k === 'score'){ o.score = {type:t[i+1], value:+t[i+2]}; i += 2; if (t[i+1] === 'lowerbound' || t[i+1] === 'upperbound') i++; }
+    else if (k === 'pv'){ o.pv = t.slice(i+1).filter(Boolean); break; }
+  }
+  return (o.score && o.pv.length) ? o : null;
+}
+
+function verdict(score){
+  if (!score) return '';
+  if (score.type === 'mate'){
+    var n = Math.abs(score.value);
+    if (score.value > 0) return 'Kau boleh mat dalam ' + n;
+    if (score.value < 0) return 'Bahaya: lawan boleh mat dalam ' + n;
+    return 'Mat';
+  }
+  var cp = score.value, a = Math.abs(cp), who = cp > 0 ? 'Kau' : 'Lawan';
+  if (a < 35) return 'Seimbang';
+  if (a < 100) return who + ' sikit depan';
+  if (a < 250) return who + ' depan';
+  if (a < 600) return who + ' jauh depan';
+  return who + ' hampir confirm menang';
+}
+function evalText(score){
+  if (!score) return '';
+  if (score.type === 'mate') return (score.value < 0 ? '-' : '+') + 'M' + Math.abs(score.value);
+  var v = score.value / 100;
+  return (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(2);
+}
+// Comparable number for a UCI score (mates far outrank any material edge)
+function scoreVal(s){
+  if (s.type === 'mate') return s.value > 0 ? 30000 - s.value * 100 : -30000 - s.value * 100;
+  return s.value;
+}
+// Pick one engine line: random among lines within maxLoss centipawns of the best, weighted toward better ones
+function pickMove(lines, maxLoss, rnd){
+  var c = lines.filter(Boolean);
+  if (!c.length) return null;
+  var vals = c.map(function(l){ return scoreVal(l.score); });
+  var bestV = Math.max.apply(null, vals);
+  var pool = [], weights = [], total = 0;
+  c.forEach(function(l, i){
+    var loss = bestV - vals[i];
+    if (loss <= maxLoss){
+      var w = Math.exp(-loss / Math.max(1, maxLoss / 2));
+      pool.push(l); weights.push(w); total += w;
+    }
+  });
+  var r = rnd() * total;
+  for (var i = 0; i < pool.length; i++){ r -= weights[i]; if (r <= 0) return pool[i]; }
+  return pool[pool.length - 1];
+}
+/* --- move review --- */
+var CLS = {
+  best:    {label:'Terbaik',        mark:''},
+  good:    {label:'Bagus',          mark:''},
+  inacc:   {label:'Kurang tepat',   mark:'?!'},
+  mistake: {label:'Silap',          mark:'?'},
+  blunder: {label:'Blunder',        mark:'??'},
+  unknown: {label:'Tak dapat nilai', mark:''}
+};
+function negScore(s){ return s ? {type:s.type, value:-s.value} : null; }
+// Chance of winning (0-100) for the side the score belongs to
+function winPct(s){
+  if (!s) return 50;
+  if (s.type === 'mate') return s.value > 0 ? 100 : 0;
+  return 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * s.value)) - 1);
+}
+// Rate a move from the eval before it (mover to play) and after it (mover's view)
+function classify(before, after, isBest){
+  if (!before || !after) return {cls:isBest ? 'best' : 'unknown', drop:0, note:''};
+  var drop = winPct(before) - winPct(after), note = '', cls;
+  if (isBest || drop < 2) cls = 'best';
+  else if (drop < 10) cls = 'good';
+  else if (drop < 20) cls = 'inacc';
+  else if (drop < 30) cls = 'mistake';
+  else cls = 'blunder';
+  if (before.type === 'mate' && before.value > 0 && !(after.type === 'mate' && after.value > 0)){
+    note = 'Tadi ada mat dalam ' + before.value + '.';
+    if (cls === 'best') cls = winPct(after) < 90 ? 'mistake' : 'good';
+  }
+  return {cls:cls, drop:Math.max(0, drop), note:note};
+}
+// Read one JSON object out of a model reply (plain, fenced, or with a sentence around it)
+function parseJsonLoose(t){
+  t = String(t || '').trim();
+  try { return JSON.parse(t); } catch(_){}
+  var m = t.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (m){ try { return JSON.parse(m[1]); } catch(_){} }
+  var a = t.indexOf('{'), b = t.lastIndexOf('}');
+  if (a >= 0 && b > a){ try { return JSON.parse(t.slice(a, b + 1)); } catch(_){} }
+  throw {code:'invalid_json', message:'Reply held no JSON', text:t};
+}
+
+/* --- board setup (susun papan) --- */
+var SETUP_FILES = 'abcdefgh';
+function sideName(c){ return c === 'w' ? 'Putih' : 'Hitam'; }
+// Castling is allowed only when King and Rook still sit on their starting squares
+function inferCastling(pos){
+  function is(sq, color, type){ var p = pos[sq]; return !!p && p.color === color && p.type === type; }
+  var s = '';
+  if (is('e1', 'w', 'k')){ if (is('h1', 'w', 'r')) s += 'K'; if (is('a1', 'w', 'r')) s += 'Q'; }
+  if (is('e8', 'b', 'k')){ if (is('h8', 'b', 'r')) s += 'k'; if (is('a8', 'b', 'r')) s += 'q'; }
+  return s || '-';
+}
+function posToFen(pos, turn){
+  var rows = [];
+  for (var r = 8; r >= 1; r--){
+    var row = '', empty = 0;
+    for (var f = 0; f < 8; f++){
+      var p = pos[SETUP_FILES[f] + r];
+      if (!p){ empty++; continue; }
+      if (empty){ row += empty; empty = 0; }
+      row += p.color === 'w' ? p.type.toUpperCase() : p.type;
+    }
+    if (empty) row += empty;
+    rows.push(row);
+  }
+  return rows.join('/') + ' ' + turn + ' ' + inferCastling(pos) + ' - 0 1';
+}
+// Returns a message saying what's wrong, or null when the engine can safely analyse it
+function validateSetup(pos, turn, ChessCtor){
+  var n = {w:{k:0, p:0, all:0}, b:{k:0, p:0, all:0}};
+  for (var sq in pos){
+    var p = pos[sq]; if (!p) continue;
+    var c = n[p.color]; c.all++;
+    if (p.type === 'k') c.k++;
+    if (p.type === 'p'){
+      c.p++;
+      if (sq[1] === '1' || sq[1] === '8') return 'Pawn tak boleh duduk kat baris 1 atau 8 (' + sq + ').';
+    }
+  }
+  var cs = ['w', 'b'];
+  for (var i = 0; i < 2; i++){
+    var col = cs[i], k = n[col];
+    if (k.k === 0) return 'Letak King ' + sideName(col) + ' kat papan.';
+    if (k.k > 1) return sideName(col) + ' ada lebih dari satu King.';
+    if (k.p > 8) return sideName(col) + ' ada lebih 8 pawn.';
+    if (k.all > 16) return sideName(col) + ' ada lebih 16 piece.';
+  }
+  var other = turn === 'w' ? 'b' : 'w', g = new ChessCtor();
+  if (!g.load(posToFen(pos, other))) return 'Posisi ni tak sah.';
+  if (g.in_check()) return 'King ' + sideName(other) + ' tengah kena check, tapi giliran ' + sideName(turn) + '. Tukar giliran atau alih piece.';
+  if (!g.load(posToFen(pos, turn))) return 'Posisi ni tak sah.';
+  return null;
+}
+function evalPct(score){
+  if (!score) return 50;
+  if (score.type === 'mate') return score.value >= 0 ? 100 : 0;
+  return 50 + 50 * (2 / (1 + Math.exp(-0.0035 * score.value)) - 1);
+}
+/*PURE-END*/
+
+var FILES = 'abcdefgh';
+var GLYPH = {k:'♚', q:'♛', r:'♜', b:'♝', n:'♞', p:'♟'};
+var VS = '︎';
+var COLOR = {w:'Putih', b:'Hitam'};
+var SPEEDS = {fast:700, normal:1800, deep:4500};
+var LEVELS = {
+  santai:    {depth:3, mpv:6, loss:160, cap:1500, desc:'Macam kaki catur kedai kopi. Move nampak munasabah, tapi kadang-kadang terlepas taktik.'},
+  sederhana: {depth:6, mpv:4, loss:70,  cap:2000, desc:'Macam pemain kelab. Jarang blunder, tapi tak selalu pilih move paling tepat.'},
+  kuat:      {depth:8, mpv:3, loss:30,  cap:2500, desc:'Hampir selalu move terbaik, atau yang dekat sangat dengan terbaik.'},
+  penuh:     {full:true, desc:'Stockfish full power. Pilih berapa lama dia fikir.'}
+};
+var LEVEL_LAT = {
+  santai:'Lawan santai. Ada peluang menang kalau kau main kemas.',
+  sederhana:'Macam pemain kelab. Kena main betul-betul.',
+  kuat:'Susah. Dia jarang bagi peluang.',
+  penuh:'Stockfish full power. Hampir mustahil menang, tapi bagus untuk belajar.'
+};
+var KEY = 'catur-petang-v1';
+
+function $(s){ return document.querySelector(s); }
+function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+var finePointer = false;
+try { finePointer = window.matchMedia('(pointer: fine)').matches; } catch(e){}
+
+function loadChess(cb){
+  if (window.Chess) return cb();
+  var s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/chess.js@0.10.3/chess.js';
+  s.onload = function(){ window.Chess ? cb() : fatal(); };
+  s.onerror = fatal;
+  document.head.appendChild(s);
+}
+function fatal(){
+  $('#words').textContent = 'Tak dapat load library catur. Check internet, lepas tu refresh.';
+  $('#status').textContent = 'error';
+}
+
+loadChess(function(){ App(); });
+
+function App(){
+  var game = new Chess();
+  var me = 'w', speed = 'normal', level = 'penuh';
+  var selected = null, best = null, pvLine = [], info = null, thinking = false, analysedFen = null;
+  var sqEl = {};
+  var confirmTimer = null;
+  var anaId = 0;
+  var setup = null, fen0 = null;
+  var input = $('#mv');
+  // modes & Claude settings
+  var mode = 'bantu', brain = 'sf', oppKind = 'sf', ctier = 'default', explainMode = 'silap';
+  var TIERS = {quick:1, 'default':1, complex:1}, EXPLAIN = {semua:1, silap:1, tutup:1};
+  // practice state
+  var reviews = {}, lastReviewPly = null, viewPly = null, pendingReview = null;
+  var pGen = 0, baseline = null, oppTurn = null, oppLast = null, hintOn = false, oppCtl = null;
+  // Claude suggestion in Bantu mode
+  var claudeSug = null, sugCtl = null;
+  var BASE_MS = 2500, REVIEW_MS = 1000;
+
+  // restore
+  try {
+    var saved = JSON.parse(localStorage.getItem(KEY) || 'null');
+    if (saved){
+      me = saved.me === 'b' ? 'b' : 'w';
+      if (SPEEDS[saved.speed]) speed = saved.speed;
+      if (LEVELS[saved.level]) level = saved.level;
+      if (saved.mode === 'latihan') mode = 'latihan';
+      if (saved.brain === 'claude') brain = 'claude';
+      if (saved.oppKind === 'claude') oppKind = 'claude';
+      if (TIERS[saved.ctier]) ctier = saved.ctier;
+      if (EXPLAIN[saved.explainMode]) explainMode = saved.explainMode;
+      if (saved.fen0 && game.load(saved.fen0)) fen0 = saved.fen0;
+      (saved.moves || []).some(function(san){ return !game.move(san); });
+      var n = game.history().length;
+      if (saved.reviews && typeof saved.reviews === 'object'){
+        Object.keys(saved.reviews).forEach(function(k){
+          var r = saved.reviews[k];
+          if (+k < n && r && CLS[r.cls]){
+            if (r.exState === 'loading') r.exState = r.explain ? 'done' : 'none';
+            reviews[k] = r;
+          }
+        });
+        var ks = Object.keys(reviews).map(Number);
+        if (ks.length) lastReviewPly = Math.max.apply(null, ks);
+      }
+    }
+  } catch(e){}
+  function save(){
+    try {
+      var rv = {};
+      Object.keys(reviews).forEach(function(k){ var r = reviews[k]; if (r && r.status === 'done') rv[k] = r; });
+      localStorage.setItem(KEY, JSON.stringify({me:me, speed:speed, level:level, mode:mode, brain:brain, oppKind:oppKind,
+        ctier:ctier, explainMode:explainMode, fen0:fen0, moves:game.history(), reviews:rv}));
+    } catch(e){}
+  }
+
+  /* ---------- engine ---------- */
+  var Engine = {
+    w:null, kind:'loading', ready:false, seq:0, latest:0, busy:null, next:null, stopping:false, want:null,
+    start:function(){
+      var self = this;
+      var sources = [
+        function(){ return new Worker('stockfish.js'); },
+        function(){ return blobWorker('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js'); },
+        function(){ return blobWorker('https://cdn.jsdelivr.net/npm/stockfish.js@10.0.2/stockfish.js'); }
+      ];
+      function tryNext(i){
+        if (i >= sources.length) return self.useLite();
+        var w, done = false, timer;
+        function fail(){
+          if (done) return; done = true; clearTimeout(timer);
+          try { w && w.terminate(); } catch(e){}
+          tryNext(i + 1);
+        }
+        try { w = sources[i](); } catch(e){ return tryNext(i + 1); }
+        timer = setTimeout(fail, 25000);
+        w.onerror = function(e){ if (e && e.preventDefault) e.preventDefault(); fail(); };
+        w.onmessage = function(e){
+          if (String(e.data).indexOf('uciok') === 0 && !done){ done = true; clearTimeout(timer); self.attach(w); }
+        };
+        w.postMessage('uci');
+      }
+      tryNext(0);
+    },
+    attach:function(w){
+      var self = this;
+      this.w = w; this.kind = 'sf'; this.ready = true;
+      w.onmessage = function(e){ self.onLine(String(e.data)); };
+      w.onerror = function(){ self.w = null; self.busy = null; self.next = null; self.useLite(); };
+      w.postMessage('setoption name Hash value 32');
+      w.postMessage('ucinewgame');
+      w.postMessage('isready');
+      renderEngine();
+      this.flushWant();
+    },
+    useLite:function(){
+      this.kind = 'lite'; this.ready = true;
+      renderEngine();
+      this.flushWant();
+    },
+    flushWant:function(){
+      if (!this.want) return;
+      var j = this.want; this.want = null;
+      if (j.id === this.latest) this.run(j);
+    },
+    analyse:function(fen, opts, h){
+      var job = {id:++this.seq, fen:fen, opts:opts, h:h, last:null, lines:[]};
+      this.latest = job.id;
+      if (!this.ready){ this.want = job; return; }
+      this.run(job);
+    },
+    run:function(job){
+      if (this.kind === 'lite'){ job.h.start(job.opts.ms); return this.liteRun(job); }
+      // One search at a time: stop the old one and start the new one only after its bestmove arrives
+      if (this.busy){
+        this.next = job;
+        if (!this.stopping){ this.stopping = true; this.w.postMessage('stop'); }
+        return;
+      }
+      this.launch(job);
+    },
+    launch:function(job){
+      var o = job.opts;
+      this.busy = job; this.stopping = false;
+      job.h.start(o.ms);
+      if (this.mpv !== o.multipv){ this.w.postMessage('setoption name MultiPV value ' + o.multipv); this.mpv = o.multipv; }
+      this.w.postMessage('position fen ' + job.fen);
+      this.w.postMessage('go ' + (o.depth ? 'depth ' + o.depth + ' ' : '') + 'movetime ' + o.ms);
+    },
+    cancel:function(){
+      this.latest = ++this.seq; this.want = null; this.next = null;
+      if (this.kind === 'sf' && this.busy && !this.stopping){ this.stopping = true; this.w.postMessage('stop'); }
+    },
+    newGame:function(){ if (this.kind === 'sf' && this.w && !this.busy) this.w.postMessage('ucinewgame'); },
+    onLine:function(line){
+      var job = this.busy;
+      if (line.indexOf('bestmove') === 0){
+        this.busy = null; this.stopping = false;
+        if (job && job.id === this.latest) job.h.done(line.split(' ')[1], job.last, job.lines);
+        var n = this.next; this.next = null;
+        if (n && n.id === this.latest) this.launch(n);
+        return;
+      }
+      if (!job || job.id !== this.latest) return;
+      if (line.indexOf('info') === 0 && line.indexOf(' pv ') > 0){
+        var p = parseInfo(line);
+        if (!p) return;
+        job.lines[p.multipv] = p;
+        if (p.multipv === 1){ job.last = p; job.h.info(p); }
+      }
+    },
+    liteRun:function(job){
+      var self = this;
+      setTimeout(function(){
+        if (job.id !== self.latest) return;
+        var r = liteSearch(job.fen, job.opts.ms);
+        if (job.id !== self.latest) return;
+        if (r){ job.last = r.info; job.h.info(r.info); }
+        job.h.done(r ? r.uci : '(none)', job.last);
+      }, 60);
+    }
+  };
+  function blobWorker(url){
+    var src = "importScripts('" + url + "');";
+    return new Worker(URL.createObjectURL(new Blob([src], {type:'text/javascript'})));
+  }
+
+  /* ---------- Claude ---------- */
+  // Inside Claude the page asks Claude on the viewer's own account; the standalone app uses the viewer's API key.
+  var KEY_API = 'catur-petang-apikey';
+  var API_MODELS = {quick:'claude-haiku-5-5', 'default':'claude-sonnet-5-5', complex:'claude-opus-5-5'};
+  var API_NAMES = {quick:'Haiku', 'default':'Sonnet', complex:'Opus'};
+  var TIER_DESC = {
+    quick:'Jawab dalam sesaat dua, tapi main lemah sikit.',
+    'default':'Fikir dalam 5 hingga 60 saat. Paling seimbang.',
+    complex:'Paling kuat, tapi boleh ambil seminit lebih setiap move.'
+  };
+  var ENG = {w:'White', b:'Black'};
+  var RATING_EN = {best:'Best move', good:'Good move', inacc:'Inaccuracy', mistake:'Mistake', blunder:'Blunder', unknown:'Unrated'};
+  var AI = {
+    host:(window.claude && typeof window.claude.use === 'function') ? 'artifact' : 'standalone',
+    mode:'pending', sample:null, msg:'', ready:null,
+    init:function(){
+      var self = this;
+      this.ready = new Promise(function(done){
+        if (self.host === 'artifact'){
+          window.claude.use('sample').then(function(s){
+            self.sample = s || null;
+            self.mode = s ? 'artifact' : 'none';
+            if (!s) self.msg = 'Claude tak boleh dipanggil dari page ni.';
+            done(); renderAI();
+          }, function(){
+            self.mode = 'none'; self.msg = 'Claude tak boleh dipanggil dari page ni.';
+            done(); renderAI();
+          });
+        } else {
+          self.mode = getApiKey() ? 'api' : 'none';
+          done(); renderAI();
+        }
+      });
+    },
+    ok:function(){ return this.mode === 'artifact' || this.mode === 'api'; },
+    // Resolves with the answer text, or the parsed JSON value when o.json
+    ask:function(prompt, o){
+      o = o || {};
+      var self = this;
+      if (this.mode === 'artifact'){
+        var opts = {modelTier:o.tier || 'default'};
+        if (o.signal) opts.signal = o.signal;
+        if (o.onText) opts.onText = o.onText;
+        if (o.cache === false) opts.cache = false;
+        var p = o.json ? this.sample.json(prompt, opts) : this.sample(prompt, opts).then(function(r){ return r.text; });
+        return p.catch(function(e){ self.fail(e); throw e; });
+      }
+      if (this.mode === 'api') return this.api(prompt, o);
+      return Promise.reject({code:'not_granted', message:'Claude is off'});
+    },
+    api:function(prompt, o){
+      return fetch('https://api.anthropic.com/v1/messages', {
+        method:'POST', signal:o.signal,
+        headers:{'content-type':'application/json', 'x-api-key':getApiKey(), 'anthropic-version':'2023-06-01',
+                 'anthropic-dangerous-direct-browser-access':'true'},
+        body:JSON.stringify({model:API_MODELS[o.tier] || API_MODELS['default'], max_tokens:1200,
+                             messages:[{role:'user', content:prompt}]})
+      }).then(function(r){
+        return r.json().catch(function(){ return {}; }).then(function(d){
+          if (!r.ok){
+            var code = (r.status === 401 || r.status === 403) ? 'bad_key' : r.status === 429 ? 'rate_limited' : 'upstream_error';
+            throw {code:code, message:(d.error && d.error.message) || ('HTTP ' + r.status)};
+          }
+          var text = (d.content || []).filter(function(b){ return b.type === 'text'; }).map(function(b){ return b.text; }).join('');
+          if (!text.trim()) throw {code:'empty_completion', message:'empty'};
+          if (o.onText) o.onText({text:text, delta:text});
+          return o.json ? parseJsonLoose(text) : text;
+        });
+      }, function(e){
+        if (e && e.name === 'AbortError') throw {code:'cancelled', message:'aborted'};
+        throw {code:'upstream_error', message:String((e && e.message) || e)};
+      });
+    },
+    // Permanent refusals switch Claude off for this view
+    fail:function(e){
+      var c = e && e.code;
+      if (c === 'not_granted' || c === 'sampling_disabled' || c === 'not_declared' || c === 'capability_disabled' || c === 'capability_removed'){
+        this.mode = 'none'; this.msg = aiErrorText(e);
+        renderAI();
+      }
+    }
+  };
+  function getApiKey(){ try { return localStorage.getItem(KEY_API) || ''; } catch(_){ return ''; } }
+  function aiErrorText(e){
+    switch (e && e.code){
+      case 'not_granted': return 'Kau tak bagi izin page ni guna Claude.';
+      case 'sampling_disabled': case 'not_declared': case 'capability_disabled': case 'capability_removed': return 'Claude tak available dalam page ni.';
+      case 'rate_limited': return 'Had guna Claude dah sampai. Cuba lagi kejap lagi.';
+      case 'session_expired': return 'Kena login Claude semula.';
+      case 'invalid_json': return 'Claude jawab dalam format pelik.';
+      case 'bad_key': return 'API key tak sah. Check semula key kau.';
+      case 'refused': return 'Claude tak nak jawab yang ni.';
+      default: return 'Claude tak dapat dihubungi. Cuba lagi.';
+    }
+  }
+  function clip(s, n){ s = typeof s === 'string' ? s.trim() : ''; return s.length > n ? s.slice(0, n - 1) + '…' : s; }
+  function movesText(){
+    var h = game.history({verbose:true});
+    if (!h.length) return fen0 ? 'none yet (the game starts from a set-up position)' : 'none yet';
+    var start = (fen0 || '').split(' '), num = +start[5] || 1, out = [], i = 0;
+    if (h[0].color === 'b'){ out.push(num + '... ' + h[0].san); i = 1; num++; }
+    for (; i < h.length; i += 2, num++) out.push(num + '. ' + h[i].san + (h[i + 1] ? ' ' + h[i + 1].san : ''));
+    return out.join(' ');
+  }
+  function movePrompt(fen, role, badMove){
+    var g = new Chess(fen), side = ENG[g.turn()];
+    var intro = role === 'opponent'
+      ? 'You are playing a casual game of chess against your friend. You play ' + side + '. Play the strongest move you can find.'
+      : 'You are a chess coach. Your student plays ' + side + ' and it is their move. Find the strongest move for them.';
+    var extra = role === 'opponent'
+      ? '"kata": "<a short friendly remark to your friend in casual Malaysian Malay, at most 12 words>"'
+      : '"sebab": "<why this move is good, 1-2 short sentences in casual Malaysian Malay>"';
+    return [
+      intro,
+      '',
+      'Position (FEN): ' + fen,
+      'Board (uppercase = White, lowercase = Black, White at the bottom):',
+      g.ascii(),
+      'Moves so far: ' + movesText(),
+      'Legal moves for ' + side + ': ' + g.moves().join(', '),
+      '',
+      'Before you choose, look at every check, capture and threat for both sides, and make sure your move does not leave a piece undefended or allow mate.',
+      badMove ? 'Your previous answer "' + badMove + '" is not a legal move here. Pick only from the legal list.' : '',
+      'Reply with only this JSON object and nothing else:',
+      '{"analisis": "<your brief reasoning in English, at most 60 words>", "move": "<one move copied exactly from the legal list>", ' + extra + '}'
+    ].join('\n');
+  }
+  // Ask Claude for a move; checks it is legal and asks once more if not
+  async function claudeMove(fen, role, signal){
+    await AI.ready;
+    if (!AI.ok()) return {error:AI.msg || 'Claude tak available.'};
+    var bad = null;
+    for (var attempt = 0; attempt < 2; attempt++){
+      var data;
+      try { data = await AI.ask(movePrompt(fen, role, bad), {json:true, tier:ctier, signal:signal, cache:attempt === 0 ? undefined : false}); }
+      catch(e){ return e && e.code === 'cancelled' ? {cancelled:true} : {error:aiErrorText(e)}; }
+      var txt = data && typeof data.move === 'string' ? data.move : '';
+      var r = txt ? resolveMove(new Chess(fen), txt) : {};
+      if (r.move) return {move:r.move, kata:clip(data.kata, 140), sebab:clip(data.sebab, 320)};
+      bad = txt || '(empty)';
+    }
+    return {error:'Claude bagi move yang tak sah.'};
+  }
+  function explainPrompt(r){
+    var g = new Chess(r.fenBefore);
+    return [
+      "You are a friendly chess coach. In casual Malaysian Malay, the way friends talk at a kopitiam, explain in 2-3 short sentences (at most 60 words) why the player's move deserves the rating below. Use only the engine facts given and do not invent other variations. If a better move existed, say what it achieves. No greeting, no markdown.",
+      '',
+      'Player plays: ' + ENG[g.turn()],
+      'Position before the move (FEN): ' + r.fenBefore,
+      'Board before the move (uppercase = White, White at the bottom):',
+      g.ascii(),
+      "Player's move: " + r.san,
+      'Rating: ' + RATING_EN[r.cls] + (r.drop >= 1 ? ' (winning chances dropped by about ' + Math.round(r.drop) + ' percentage points)' : ''),
+      "Engine evaluation before the move, from the player's side: " + (r.before ? evalText(r.before) : 'unknown'),
+      "Engine evaluation after the move, from the player's side: " + (r.after ? evalText(r.after) : 'unknown'),
+      r.bestSan && r.bestSan !== r.san
+        ? "Engine's best move instead: " + r.bestSan + (r.bestLine && r.bestLine.length > 1 ? ' (line: ' + r.bestLine.join(' ') + ')' : '')
+        : "The player found the engine's top move.",
+      r.replyLine && r.replyLine.length ? "Opponent's best reply after the player's move: " + r.replyLine.join(' ') : '',
+      r.note ? 'Note: ' + r.note : ''
+    ].join('\n');
+  }
+
+  /* ---------- fallback engine (only if Stockfish can't load) ---------- */
+  var VAL = {p:100, n:320, b:330, r:500, q:900, k:0};
+  var PST = {
+    p:[0,0,0,0,0,0,0,0,50,50,50,50,50,50,50,50,10,10,20,30,30,20,10,10,5,5,10,25,25,10,5,5,0,0,0,20,20,0,0,0,5,-5,-10,0,0,-10,-5,5,5,10,10,-20,-20,10,10,5,0,0,0,0,0,0,0,0],
+    n:[-50,-40,-30,-30,-30,-30,-40,-50,-40,-20,0,0,0,0,-20,-40,-30,0,10,15,15,10,0,-30,-30,5,15,20,20,15,5,-30,-30,0,15,20,20,15,0,-30,-30,5,10,15,15,10,5,-30,-40,-20,0,5,5,0,-20,-40,-50,-40,-30,-30,-30,-30,-40,-50],
+    b:[-20,-10,-10,-10,-10,-10,-10,-20,-10,0,0,0,0,0,0,-10,-10,0,5,10,10,5,0,-10,-10,5,5,10,10,5,5,-10,-10,0,10,10,10,10,0,-10,-10,10,10,10,10,10,10,-10,-10,5,0,0,0,0,5,-10,-20,-10,-10,-10,-10,-10,-10,-20],
+    r:[0,0,0,0,0,0,0,0,5,10,10,10,10,10,10,5,-5,0,0,0,0,0,0,-5,-5,0,0,0,0,0,0,-5,-5,0,0,0,0,0,0,-5,-5,0,0,0,0,0,0,-5,-5,0,0,0,0,0,0,-5,0,0,0,5,5,0,0,0],
+    q:[-20,-10,-10,-5,-5,-10,-10,-20,-10,0,0,0,0,0,0,-10,-10,0,5,5,5,5,0,-10,-5,0,5,5,5,5,0,-5,0,0,5,5,5,5,0,-5,-10,5,5,5,5,5,0,-10,-10,0,5,0,0,0,0,-10,-20,-10,-10,-5,-5,-10,-10,-20],
+    k:[-30,-40,-40,-50,-50,-40,-40,-30,-30,-40,-40,-50,-50,-40,-40,-30,-30,-40,-40,-50,-50,-40,-40,-30,-30,-40,-40,-50,-50,-40,-40,-30,-20,-30,-30,-40,-40,-30,-30,-20,-10,-20,-20,-20,-20,-20,-20,-10,20,20,0,0,0,0,20,20,20,30,10,0,0,10,30,20]
+  };
+  function liteSearch(fen, ms){
+    var g = new Chess(fen), deadline = Date.now() + ms, nodes = 0, ABORT = {}, MATE = 100000;
+    function evalPos(){
+      var b = g.board(), s = 0;
+      for (var r = 0; r < 8; r++) for (var f = 0; f < 8; f++){
+        var pc = b[r][f]; if (!pc) continue;
+        var idx = pc.color === 'w' ? r * 8 + f : (7 - r) * 8 + f;
+        var v = VAL[pc.type] + PST[pc.type][idx];
+        s += pc.color === 'w' ? v : -v;
+      }
+      return g.turn() === 'w' ? s : -s;
+    }
+    function ord(m){ return (m.captured ? 1000 + 10 * VAL[m.captured] - VAL[m.piece] : 0) + (m.promotion ? 800 : 0); }
+    function sortMoves(ms){ return ms.sort(function(a, b){ return ord(b) - ord(a); }); }
+    function tick(){ if ((++nodes & 127) === 0 && Date.now() > deadline) throw ABORT; }
+    function quiesce(alpha, beta, qd){
+      tick();
+      var stand = evalPos();
+      if (stand >= beta) return stand;
+      if (stand > alpha) alpha = stand;
+      if (qd >= 3) return alpha;
+      var caps = sortMoves(g.moves({verbose:true}).filter(function(m){ return m.captured || m.promotion; }));
+      for (var i = 0; i < caps.length; i++){
+        g.move(caps[i]); var v = -quiesce(-beta, -alpha, qd + 1); g.undo();
+        if (v >= beta) return v;
+        if (v > alpha) alpha = v;
+      }
+      return alpha;
+    }
+    function nega(depth, alpha, beta, ply){
+      tick();
+      var moves = g.moves({verbose:true});
+      if (!moves.length) return g.in_check() ? -MATE + ply : 0;
+      if (g.in_draw()) return 0;
+      if (depth === 0) return quiesce(alpha, beta, 0);
+      sortMoves(moves);
+      for (var i = 0; i < moves.length; i++){
+        g.move(moves[i]); var v = -nega(depth - 1, -beta, -alpha, ply + 1); g.undo();
+        if (v >= beta) return v;
+        if (v > alpha) alpha = v;
+      }
+      return alpha;
+    }
+    var root = sortMoves(g.moves({verbose:true}));
+    if (!root.length) return null;
+    var bestM = root[0], bestS = 0, depthDone = 0, t0 = Date.now();
+    try {
+      for (var d = 1; d <= 6; d++){
+        var alpha = -1e9, cur = null, curS = -1e9;
+        root.sort(function(a, b){ return (b === bestM) - (a === bestM); });
+        for (var i = 0; i < root.length; i++){
+          g.move(root[i]); var v = -nega(d - 1, -1e9, -alpha, 1); g.undo();
+          if (v > curS){ curS = v; cur = root[i]; }
+          if (v > alpha) alpha = v;
+        }
+        bestM = cur; bestS = curS; depthDone = d;
+        if (Math.abs(bestS) > MATE - 100) break;
+        if (Date.now() - t0 > ms * 0.35) break;
+      }
+    } catch(e){ if (e !== ABORT) throw e; }
+    var score = Math.abs(bestS) > MATE - 100
+      ? {type:'mate', value:(bestS > 0 ? 1 : -1) * Math.ceil((MATE - Math.abs(bestS)) / 2)}
+      : {type:'cp', value:bestS};
+    var uci = bestM.from + bestM.to + (bestM.promotion || '');
+    return {uci:uci, info:{depth:depthDone, score:score, pv:[uci]}};
+  }
+
+  /* ---------- helpers ---------- */
+  function uciLine(fen, pv){
+    var g = new Chess(fen), out = [];
+    for (var i = 0; i < pv.length && i < 8; i++){
+      var u = pv[i];
+      var m = g.move({from:u.slice(0, 2), to:u.slice(2, 4), promotion:u.length > 4 ? u[4] : undefined});
+      if (!m) break;
+      out.push(m);
+    }
+    return out;
+  }
+  function fmtLine(fen, moves){
+    var parts = fen.split(' '), n = +parts[5], turn = parts[1], out = [];
+    moves.forEach(function(m, i){
+      if (turn === 'w') out.push(n + '.');
+      else if (i === 0) out.push(n + '...');
+      out.push(i === 0 ? '<span>' + esc(m.san) + '</span>' : esc(m.san));
+      if (turn === 'b') n++;
+      turn = turn === 'w' ? 'b' : 'w';
+    });
+    return out.join(' ');
+  }
+  function describe(m){
+    if (m.flags.indexOf('k') >= 0) return 'Castle pendek (belah King)';
+    if (m.flags.indexOf('q') >= 0) return 'Castle panjang (belah Queen)';
+    var s = PNAME[m.piece] + ' ' + m.from + ' → ' + m.to;
+    if (m.captured) s += ', makan ' + PNAME[m.captured];
+    if (m.promotion) s += ', naik jadi ' + PNAME[m.promotion];
+    if (/#$/.test(m.san)) s += '. Checkmate!';
+    else if (/\+$/.test(m.san)) s += ', check';
+    return s;
+  }
+  function setMsg(text, note){
+    var el = $('#msg'); el.textContent = text || ''; el.classList.toggle('note', !!note);
+  }
+  function otherSideMove(tok){
+    var parts = game.fen().split(' ');
+    parts[1] = parts[1] === 'w' ? 'b' : 'w'; parts[3] = '-';
+    var g2 = new Chess();
+    if (!g2.load(parts.join(' '))) return null;
+    return resolveMove(g2, tok).move || null;
+  }
+
+  /* ---------- board ---------- */
+  function buildBoard(){
+    var board = $('#board');
+    for (var r = 0; r < 8; r++) for (var f = 0; f < 8; f++){
+      (function(sq, dark){
+        var el = document.createElement('button');
+        el.type = 'button';
+        el.id = 'sq-' + sq;
+        el.className = 'sq ' + (dark ? 'dark' : 'light');
+        el.innerHTML = '<span class="pc"></span><i class="dot"></i>';
+        el.addEventListener('click', function(e){ if (e.detail === 0) onSquareKey(sq); });
+        board.appendChild(el);
+        sqEl[sq] = el;
+      })(FILES[f] + (8 - r), (r + f) % 2 === 1);
+    }
+  }
+  function renderBoard(){
+    var flip = me === 'b';
+    var b = setup ? posToArray(setup.pos) : game.board();
+    var hist = setup ? [] : game.history({verbose:true}), last = hist[hist.length - 1];
+    var targets = {};
+    if (selected && !setup) game.moves({square:selected, verbose:true}).forEach(function(m){ targets[m.to] = true; });
+    var checkSq = null;
+    if (!setup && game.in_check()){
+      for (var rr = 0; rr < 8; rr++) for (var ff = 0; ff < 8; ff++){
+        var p0 = b[rr][ff];
+        if (p0 && p0.type === 'k' && p0.color === game.turn()) checkSq = FILES[ff] + (8 - rr);
+      }
+    }
+    for (var r = 0; r < 8; r++) for (var f = 0; f < 8; f++){
+      var sq = FILES[f] + (8 - r), el = sqEl[sq], pc = b[r][f];
+      var row = flip ? 8 - r : r + 1, col = flip ? 8 - f : f + 1;
+      el.style.gridRow = row; el.style.gridColumn = col;
+      var span = el.firstChild;
+      span.textContent = pc ? GLYPH[pc.type] + VS : '';
+      span.className = 'pc' + (pc ? ' ' + pc.color : '');
+      el.classList.toggle('last', !!last && (last.from === sq || last.to === sq));
+      el.classList.toggle('sel', selected === sq);
+      el.classList.toggle('target', !!targets[sq]);
+      el.classList.toggle('cap', !!targets[sq] && !!pc);
+      el.classList.toggle('check', sq === checkSq);
+      if (col === 1) el.setAttribute('data-rank', String(8 - r)); else el.removeAttribute('data-rank');
+      if (row === 8) el.setAttribute('data-file', FILES[f]); else el.removeAttribute('data-file');
+      el.setAttribute('aria-label', sq + (pc ? ', ' + PNAME[pc.type] + ' ' + (pc.color === 'w' ? 'putih' : 'hitam') : ', kosong'));
+    }
+    drawArrow();
+  }
+  function drawArrow(){
+    var svg = $('#arrows');
+    var mv = arrowMove();
+    if (!mv){ svg.innerHTML = ''; return; }
+    var live = mode === 'latihan' ? !!(baseline && !baseline.done) : (!useClaudeBrain() && thinking);
+    function c(sq){
+      var f = FILES.indexOf(sq[0]), r = +sq[1];
+      var x = me === 'b' ? 7 - f : f, y = me === 'b' ? r - 1 : 8 - r;
+      return [x + .5, y + .5];
+    }
+    var a = c(mv.from), z = c(mv.to);
+    var dx = z[0] - a[0], dy = z[1] - a[1], len = Math.hypot(dx, dy) || 1;
+    var ux = dx / len, uy = dy / len, nx = -uy, ny = ux;
+    var w = .17, hw = .48, hl = .46;
+    var bx = z[0] - ux * hl, by = z[1] - uy * hl;
+    var sx = a[0] + ux * .1, sy = a[1] + uy * .1;
+    var pts = [[sx + nx * w / 2, sy + ny * w / 2], [bx + nx * w / 2, by + ny * w / 2], [bx + nx * hw / 2, by + ny * hw / 2], [z[0], z[1]],
+               [bx - nx * hw / 2, by - ny * hw / 2], [bx - nx * w / 2, by - ny * w / 2], [sx - nx * w / 2, sy - ny * w / 2]];
+    svg.innerHTML = '<polygon class="' + (live ? 'live' : '') + '" points="' +
+      pts.map(function(p){ return p[0].toFixed(3) + ',' + p[1].toFixed(3); }).join(' ') + '"/>';
+  }
+  // Try from→to; opens the promotion picker when a pawn reaches the last rank
+  function tryMove(from, to){
+    var cands = game.moves({square:from, verbose:true}).filter(function(m){ return m.to === to; });
+    if (!cands.length){
+      var p = game.get(to);
+      selected = (p && p.color === game.turn()) ? to : null;
+      renderBoard();
+      return;
+    }
+    if (cands[0].promotion){ openPromo(from, to); return; }
+    selected = null;
+    play({from:from, to:to});
+  }
+  // Keyboard path (Enter/Space on a square)
+  function onSquareKey(sq){
+    if (promoMove) return;
+    if (setup){
+      if (setup.tool !== 'move'){ paintAt(sq, sameAt(sq) ? 'remove' : 'place'); setupChanged(); return; }
+      var sp = setup.pos[sq];
+      if (selected && selected !== sq && !sp){ setupMove(selected, sq); selected = null; setupChanged(); return; }
+      selected = (sp && selected !== sq) ? sq : null;
+      renderBoard();
+      return;
+    }
+    if (game.game_over()) return;
+    var pc = game.get(sq);
+    if (selected && sq !== selected && !(pc && pc.color === game.turn())) return tryMove(selected, sq);
+    selected = (canTouch(pc) && selected !== sq) ? sq : null;
+    renderBoard();
+  }
+
+  /* ---------- drag & tap on the board ---------- */
+  var boardEl = $('#board'), wrapEl = $('#wrap'), ghost = $('#ghost');
+  var drag = null, hoverSq = null;
+  function sqFromPoint(x, y){
+    var r = boardEl.getBoundingClientRect();
+    var cx = Math.floor((x - r.left) / r.width * 8), cy = Math.floor((y - r.top) / r.height * 8);
+    if (cx < 0 || cx > 7 || cy < 0 || cy > 7) return null;
+    var f = me === 'b' ? 7 - cx : cx, rank = me === 'b' ? cy + 1 : 8 - cy;
+    return FILES[f] + rank;
+  }
+  function setHover(sq){
+    if (hoverSq === sq) return;
+    if (hoverSq) sqEl[hoverSq].classList.remove('hover');
+    hoverSq = sq;
+    if (sq) sqEl[sq].classList.add('hover');
+  }
+  function moveGhost(x, y){
+    var r = wrapEl.getBoundingClientRect();
+    ghost.style.left = (x - r.left) + 'px';
+    ghost.style.top = (y - r.top) + 'px';
+  }
+  function endDrag(){
+    if (drag && drag.from) sqEl[drag.from].classList.remove('dragging');
+    ghost.hidden = true;
+    setHover(null);
+    drag = null;
+  }
+  boardEl.addEventListener('pointerdown', function(e){
+    if (e.button > 0 || promoMove) return;
+    var sq = sqFromPoint(e.clientX, e.clientY);
+    if (!sq) return;
+    if (!setup && game.game_over()) return;
+    e.preventDefault();
+    if (setup){
+      if (setup.tool !== 'move'){
+        var mode = sameAt(sq) ? 'remove' : 'place';
+        drag = {paint:true, mode:mode, last:sq, id:e.pointerId};
+        paintAt(sq, mode); setupChanged();
+      } else {
+        var sp = setup.pos[sq];
+        if (sp){
+          drag = {from:sq, x:e.clientX, y:e.clientY, moved:false, id:e.pointerId, wasSelected:selected === sq, pc:sp};
+          selected = sq; renderBoard();
+        } else {
+          drag = {from:null, id:e.pointerId};
+        }
+      }
+      try { boardEl.setPointerCapture(e.pointerId); } catch(_){}
+      return;
+    }
+    var pc = game.get(sq);
+    if (canTouch(pc)){
+      drag = {from:sq, x:e.clientX, y:e.clientY, moved:false, id:e.pointerId, wasSelected:selected === sq, pc:pc};
+      selected = sq;
+      renderBoard();
+    } else {
+      drag = {from:null, id:e.pointerId};
+      if (pc && !selected){
+        if (mode !== 'latihan') nudgeWrongSide();
+        else if (game.turn() !== me || oppTurn) showNudge('Tunggu kejap, ' + oppName() + ' tengah fikir.');
+        else showNudge('Tu piece lawan. Kau main ' + COLOR[me] + '.');
+      }
+    }
+    try { boardEl.setPointerCapture(e.pointerId); } catch(_){}
+  });
+  var nudgeTimer = null;
+  function showNudge(text){
+    var el = $('#nudge');
+    el.textContent = text;
+    el.hidden = false;
+    clearTimeout(nudgeTimer);
+    nudgeTimer = setTimeout(function(){ el.hidden = true; }, 4500);
+  }
+  function nudgeWrongSide(){
+    var opp = me === 'w' ? 'b' : 'w';
+    showNudge(game.turn() === me
+      ? 'Sekarang giliran kau. Gerak piece ' + COLOR[me] + ' dulu' + (best ? ' (atau tekan "Main ' + best.san + '")' : '') + ', baru gerak piece lawan.'
+      : 'Sekarang giliran lawan. Gerak piece ' + COLOR[opp] + ' ikut apa member kau main.');
+  }
+  boardEl.addEventListener('pointermove', function(e){
+    if (!drag || e.pointerId !== drag.id) return;
+    if (drag.paint){
+      var ps = sqFromPoint(e.clientX, e.clientY);
+      if (ps && ps !== drag.last){ drag.last = ps; paintAt(ps, drag.mode); setupChanged(); }
+      return;
+    }
+    if (!drag.from) return;
+    if (!drag.moved){
+      if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 6) return;
+      drag.moved = true;
+      ghost.textContent = GLYPH[drag.pc.type] + VS;
+      ghost.className = 'pc drag-ghost ' + drag.pc.color;
+      ghost.hidden = false;
+      sqEl[drag.from].classList.add('dragging');
+    }
+    moveGhost(e.clientX, e.clientY);
+    setHover(sqFromPoint(e.clientX, e.clientY));
+  });
+  boardEl.addEventListener('pointerup', function(e){
+    if (!drag || e.pointerId !== drag.id) return;
+    var d = drag, target = sqFromPoint(e.clientX, e.clientY);
+    endDrag();
+    if (d.paint) return;
+    if (setup){
+      if (d.from){
+        if (d.moved){
+          if (!target) setupPlace(d.from, null);
+          else if (target !== d.from) setupMove(d.from, target);
+          selected = null; setupChanged();
+        } else if (d.wasSelected){
+          selected = null; renderBoard();
+        }
+      } else if (selected && target){
+        setupMove(selected, target); selected = null; setupChanged();
+      } else if (selected){
+        selected = null; renderBoard();
+      }
+      return;
+    }
+    if (d.from){
+      if (d.moved){
+        if (target && target !== d.from) tryMove(d.from, target);
+        else renderBoard();
+      } else if (d.wasSelected){
+        selected = null; renderBoard();
+      }
+    } else if (selected && target){
+      tryMove(selected, target);
+    } else if (selected){
+      selected = null; renderBoard();
+    }
+  });
+  boardEl.addEventListener('pointercancel', function(){ endDrag(); renderBoard(); });
+
+  /* ---------- promotion picker ---------- */
+  var promoMove = null;
+  function openPromo(from, to){
+    promoMove = {from:from, to:to};
+    var color = game.turn(), row = $('#promoRow');
+    row.innerHTML = '';
+    ['q', 'r', 'b', 'n'].forEach(function(p){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.id = 'promo-' + p;
+      b.setAttribute('aria-label', PNAME[p]);
+      b.innerHTML = '<span class="pc ' + color + '">' + GLYPH[p] + VS + '</span>';
+      b.addEventListener('click', function(){ closePromo(); selected = null; play({from:from, to:to, promotion:p}); });
+      row.appendChild(b);
+    });
+    $('#promo').hidden = false;
+    try { $('#promo-q').focus({preventScroll:true}); } catch(_){}
+  }
+  function closePromo(){ promoMove = null; $('#promo').hidden = true; }
+  $('#promoCancel').addEventListener('click', function(){ closePromo(); selected = null; renderBoard(); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && promoMove){ closePromo(); selected = null; renderBoard(); } });
+
+  /* ---------- susun papan (board editor) ---------- */
+  function opp(c){ return c === 'w' ? 'b' : 'w'; }
+  function posFromBoard(b){
+    var pos = {};
+    for (var r = 0; r < 8; r++) for (var f = 0; f < 8; f++){
+      var p = b[r][f];
+      if (p) pos[FILES[f] + (8 - r)] = {type:p.type, color:p.color};
+    }
+    return pos;
+  }
+  function posToArray(pos){
+    var b = [];
+    for (var r = 0; r < 8; r++){
+      var row = [];
+      for (var f = 0; f < 8; f++) row.push(pos[FILES[f] + (8 - r)] || null);
+      b.push(row);
+    }
+    return b;
+  }
+  function setupTurn(){ return setup.mine ? me : opp(me); }
+  function kingSq(color){
+    for (var sq in setup.pos){ var p = setup.pos[sq]; if (p && p.type === 'k' && p.color === color) return sq; }
+    return null;
+  }
+  function backRank(sq){ return sq[1] === '1' || sq[1] === '8'; }
+  // Put a piece on sq (or clear it when piece is null). Kings can be moved but never removed.
+  function setupPlace(sq, piece){
+    var cur = setup.pos[sq];
+    if (cur && cur.type === 'k' && !(piece && piece.type === 'k' && piece.color === cur.color)){
+      showNudge('King tak boleh dibuang. Pilih "Gerak", lepas tu drag King ke petak lain.');
+      return false;
+    }
+    if (piece && piece.type === 'p' && backRank(sq)){ showNudge('Pawn tak boleh duduk kat baris 1 atau 8.'); return false; }
+    if (piece && piece.type === 'k'){ var k = kingSq(piece.color); if (k && k !== sq) delete setup.pos[k]; }
+    if (piece) setup.pos[sq] = {type:piece.type, color:piece.color};
+    else delete setup.pos[sq];
+    return true;
+  }
+  function setupMove(from, to){
+    var pc = setup.pos[from], cur = setup.pos[to];
+    if (!pc || from === to) return;
+    if (cur && cur.type === 'k'){ showNudge('Petak tu ada King. Alih King tu dulu.'); return; }
+    if (pc.type === 'p' && backRank(to)){ showNudge('Pawn tak boleh duduk kat baris 1 atau 8.'); return; }
+    delete setup.pos[from];
+    setup.pos[to] = pc;
+  }
+  function sameAt(sq){
+    var t = setup.tool, c = setup.pos[sq];
+    return !!c && t.length === 2 && c.color === t[0] && c.type === t[1];
+  }
+  function paintAt(sq, mode){
+    var t = setup.tool;
+    if (t === 'erase'){ if (setup.pos[sq]) setupPlace(sq, null); return; }
+    if (mode === 'remove'){ if (sameAt(sq)) setupPlace(sq, null); return; }
+    if (!sameAt(sq)) setupPlace(sq, {color:t[0], type:t[1]});
+  }
+  function setupChanged(){ renderBoard(); renderSetup(); }
+
+  function enterSetup(){
+    stopAll();
+    closePromo();
+    selected = null;
+    setup = {pos:posFromBoard(game.board()), mine:game.turn() === me, tool:'move'};
+    $('#nudge').hidden = true;
+    $('#fenMsg').textContent = '';
+    update();
+    // On phones, bring the board and palette into view together
+    if (window.innerWidth <= 820){
+      var reduce = false;
+      try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch(_){}
+      try { wrapEl.scrollIntoView({block:'start', behavior:reduce ? 'auto' : 'smooth'}); } catch(_){ wrapEl.scrollIntoView(); }
+    }
+  }
+  function cancelSetup(){ setup = null; selected = null; analysedFen = null; update(); }
+  function finishSetup(){
+    var t = setupTurn(), err = validateSetup(setup.pos, t, Chess);
+    if (err){ renderSetup(); return; }
+    var fen = posToFen(setup.pos, t);
+    if (!game.load(fen)) return;
+    fen0 = fen; setup = null; selected = null; analysedFen = null;
+    reviews = {}; lastReviewPly = null; viewPly = null; oppLast = null;
+    Engine.newGame(); setMsg(''); input.value = '';
+    update();
+  }
+  function applyFen(){
+    var raw = $('#fenIn').value.trim(), msg = $('#fenMsg');
+    if (!raw) return;
+    var parts = raw.split(/\s+/);
+    var fen = [parts[0], parts[1] || setupTurn(), parts[2] || '-', parts[3] || '-', parts[4] || '0', parts[5] || '1'].join(' ');
+    var g2 = new Chess();
+    if (!g2.load(fen)){ msg.textContent = 'FEN tu tak sah. Copy semula dari Lichess atau Chess.com.'; return; }
+    msg.textContent = '';
+    setup.pos = posFromBoard(g2.board());
+    setup.mine = g2.turn() === me;
+    $('#fenIn').blur();
+    setupChanged();
+  }
+  function renderSetup(){
+    if (!setup) return;
+    var t = setupTurn();
+    Array.prototype.forEach.call(document.querySelectorAll('#palette button'), function(b){
+      b.setAttribute('aria-pressed', String(b.dataset.tool === setup.tool));
+    });
+    $('#turnMine').textContent = 'Aku · ' + COLOR[me];
+    $('#turnOpp').textContent = 'Lawan · ' + COLOR[opp(me)];
+    $('#turnMine').setAttribute('aria-pressed', String(setup.mine));
+    $('#turnOpp').setAttribute('aria-pressed', String(!setup.mine));
+    var err = validateSetup(setup.pos, t, Chess), note = '';
+    if (!err){
+      var g2 = new Chess(posToFen(setup.pos, t));
+      if (g2.in_checkmate()) note = 'Posisi ni dah checkmate untuk ' + COLOR[t] + '.';
+      else if (g2.in_stalemate()) note = 'Posisi ni stalemate: ' + COLOR[t] + ' takde move sah.';
+    }
+    var m = $('#setupMsg');
+    m.textContent = err || note;
+    m.classList.toggle('note', !err);
+    var btn = $('#setupDone');
+    btn.disabled = !!err;
+    btn.textContent = setup.mine ? 'Siap, cari move untuk ' + COLOR[me] : 'Siap, lawan jalan dulu';
+    var fi = $('#fenIn');
+    if (document.activeElement !== fi) fi.value = posToFen(setup.pos, t);
+    var turn = $('#turn');
+    turn.querySelector('.dot').className = 'dot ' + t;
+    turn.querySelector('span').textContent = 'Susun papan · giliran ' + (setup.mine ? 'kau' : 'lawan');
+    turn.classList.add('mine');
+  }
+
+  /* ---------- game flow ---------- */
+  function play(mv){
+    var fenBefore = game.fen(), mine = game.turn() === me;
+    var res = game.move(mv);
+    if (!res) return null;
+    if (mode === 'latihan' && mine){
+      var ply = game.history().length - 1, id = ++reviewSeq;
+      pendingReview = {id:id, ply:ply, fenBefore:fenBefore, fenAfter:game.fen(), san:res.san,
+        uci:res.from + res.to + (res.promotion || ''),
+        base:baseline && baseline.fen === fenBefore && baseline.info ? {info:baseline.info, uci:baseline.done ? baseline.uci : null} : null};
+      reviews[ply] = {id:id, san:res.san, status:'pending'};
+      lastReviewPly = ply; viewPly = null; hintOn = false; baseline = null;
+    }
+    selected = null; setMsg('');
+    input.value = '';
+    $('#nudge').hidden = true;
+    update();
+    return res;
+  }
+  function update(){
+    save();
+    renderBoard();
+    renderPanel();
+    if (mode === 'bantu') maybeAnalyse(); else practiceTick();
+  }
+  function maybeAnalyse(){
+    var fen = game.fen();
+    if (setup || game.game_over() || game.turn() !== me){
+      anaId++;
+      if (thinking || analysedFen) Engine.cancel();
+      thinking = false; best = null; pvLine = []; info = null; analysedFen = null;
+      if (sugCtl){ sugCtl.abort(); sugCtl = null; }
+      claudeSug = null;
+      return;
+    }
+    if (brain === 'claude') requestClaudeSuggestion(fen);
+    if (analysedFen === fen) return;
+    analysedFen = fen; best = null; pvLine = []; info = null; thinking = true;
+    renderSuggest(); drawArrow();
+    var pending = null, lv = LEVELS[level], my = ++anaId;
+    var opts = lv.full ? {multipv:1, ms:SPEEDS[speed]} : {multipv:lv.mpv, depth:lv.depth, ms:lv.cap};
+    Engine.analyse(fen, opts, {
+      start:function(ms){
+        if (my !== anaId || game.fen() !== fen) return;
+        var bar = $('#bar');
+        bar.style.animation = 'none'; void bar.offsetWidth;
+        bar.style.animation = 'grow ' + ms + 'ms linear forwards';
+        renderSuggest();
+      },
+      info:function(p){
+        if (my !== anaId || game.fen() !== fen) return;
+        if (!lv.full) return;
+        if (!pending) requestAnimationFrame(function(){
+          var q = pending; pending = null;
+          if (!q || my !== anaId || game.fen() !== fen) return;
+          var line = uciLine(fen, q.pv);
+          if (!line.length) return;
+          info = q; pvLine = line; best = line[0]; best.fenBefore = fen;
+          renderSuggest(); drawArrow();
+        });
+        pending = p;
+      },
+      done:function(uci, last, lines){
+        if (my !== anaId || game.fen() !== fen) return;
+        thinking = false;
+        if (!lv.full && lines && lines.length){
+          var pick = pickMove(lines, lv.loss, Math.random);
+          var pl = pick ? uciLine(fen, pick.pv) : [];
+          if (pl.length){
+            info = pick; pvLine = pl; best = pl[0]; best.fenBefore = fen;
+            renderSuggest(); drawArrow();
+            return;
+          }
+        }
+        if (last){
+          var line = uciLine(fen, last.pv);
+          if (line.length){ info = last; pvLine = line; best = line[0]; best.fenBefore = fen; }
+        }
+        if (uci && uci !== '(none)' && (!best || best.from + best.to + (best.promotion || '') !== uci)){
+          var mv = uciLine(fen, [uci])[0];
+          if (mv){ best = mv; best.fenBefore = fen; pvLine = [mv]; }
+        }
+        renderSuggest(); drawArrow();
+      }
+    });
+  }
+
+  /* ---------- Claude suggestion (Bantu) ---------- */
+  function requestClaudeSuggestion(fen){
+    if (claudeSug && claudeSug.fen === fen && claudeSug.tier === ctier && claudeSug.status !== 'error') return;
+    if (sugCtl) sugCtl.abort();
+    var ctl = sugCtl = new AbortController();
+    var s = claudeSug = {fen:fen, tier:ctier, status:'loading'};
+    renderSuggest();
+    claudeMove(fen, 'advisor', ctl.signal).then(function(r){
+      if (sugCtl === ctl) sugCtl = null;
+      if (claudeSug !== s) return;
+      if (r.cancelled){ claudeSug = null; return; }
+      if (r.move){ s.status = 'done'; s.move = r.move; s.move.fenBefore = fen; s.sebab = r.sebab; }
+      else { s.status = 'error'; s.err = r.error; }
+      renderSuggest(); drawArrow();
+    });
+  }
+  function useClaudeBrain(){ return mode === 'bantu' && brain === 'claude' && AI.mode !== 'none'; }
+  // The move the board arrow points at, if any
+  function arrowMove(){
+    if (setup || game.game_over() || game.turn() !== me) return null;
+    var fen = game.fen();
+    if (mode === 'latihan'){
+      if (!hintOn || !baseline || baseline.fen !== fen || !baseline.info || !baseline.info.pv.length) return null;
+      var m = uciToMove(fen, baseline.info.pv[0]);
+      if (m) m.fenBefore = fen;
+      return m;
+    }
+    if (useClaudeBrain()) return claudeSug && claudeSug.fen === fen && claudeSug.move ? claudeSug.move : null;
+    return best && best.fenBefore === fen ? best : null;
+  }
+
+  /* ---------- Latihan (practice) ---------- */
+  var reviewSeq = 0;
+  function search(fen, opts, onInfo){
+    return new Promise(function(resolve){
+      Engine.analyse(fen, opts, {
+        start:function(){},
+        info:function(p){ if (onInfo) onInfo(p); },
+        done:function(uci, last, lines){ resolve({uci:uci, info:last || null, lines:lines || []}); }
+      });
+    });
+  }
+  function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+  function uciToMove(fen, uci){ return uci && uci !== '(none)' ? (uciLine(fen, [uci])[0] || null) : null; }
+  function sanLine(fen, pv, n){ return uciLine(fen, (pv || []).slice(0, n || 6)).map(function(m){ return m.san; }); }
+  function canTouch(pc){
+    if (!pc || pc.color !== game.turn()) return false;
+    if (mode === 'latihan') return pc.color === me && !oppTurn;
+    return true;
+  }
+  function cancelPractice(){
+    pGen++;
+    if (oppCtl){ try { oppCtl.abort(); } catch(_){} oppCtl = null; }
+    if (oppTurn || baseline || pendingReview) Engine.cancel();
+    Object.keys(reviews).forEach(function(k){ if (reviews[k].status === 'pending') delete reviews[k]; });
+    oppTurn = null; baseline = null; pendingReview = null; hintOn = false;
+  }
+  function pruneReviews(){
+    var n = game.history().length;
+    Object.keys(reviews).forEach(function(k){ if (+k >= n) delete reviews[k]; });
+    var ks = Object.keys(reviews).map(Number);
+    lastReviewPly = ks.length ? Math.max.apply(null, ks) : null;
+    viewPly = null;
+  }
+  function stopAll(){
+    anaId++; Engine.cancel();
+    thinking = false; best = null; pvLine = []; info = null; analysedFen = null;
+    if (sugCtl){ sugCtl.abort(); sugCtl = null; }
+    claudeSug = null;
+    cancelPractice(); pruneReviews();
+    selected = null;
+  }
+  function practiceTick(){
+    if (mode !== 'latihan' || setup) return;
+    var fen = game.fen();
+    if (game.game_over()){
+      if (pendingReview && pendingReview.fenAfter === fen){
+        var rv = pendingReview; pendingReview = null;
+        reviewSearch(fen, rv, ++pGen);
+      }
+      return;
+    }
+    if (game.turn() === me){
+      if (!baseline || baseline.fen !== fen) startBaseline(fen);
+    } else if (!oppTurn || oppTurn.fen !== fen){
+      startOpponent(fen);
+    }
+  }
+  // While it's my turn, Stockfish quietly works out the best move: it is the yardstick for the review and the hint
+  function startBaseline(fen){
+    var gen = ++pGen;
+    var b = baseline = {fen:fen, info:null, uci:null, done:false};
+    search(fen, {multipv:1, ms:BASE_MS}, function(p){
+      if (gen !== pGen || baseline !== b) return;
+      var first = !b.info;
+      b.info = p;
+      if (first) renderDuel();
+      if (hintOn) drawArrow();
+    }).then(function(r){
+      if (gen !== pGen || baseline !== b) return;
+      if (r.info) b.info = r.info;
+      b.uci = r.uci; b.done = true;
+      renderDuel(); drawArrow();
+    });
+    renderDuel();
+  }
+  // Evaluates the position after my move; resolves undefined if superseded
+  async function reviewSearch(fen, rv, gen){
+    if (rv && (!rv.base || !rv.base.info || rv.base.info.depth < 8)){
+      var b = await search(rv.fenBefore, {multipv:1, ms:700});
+      if (gen !== pGen) return undefined;
+      if (b.info && (!rv.base || !rv.base.info || b.info.depth >= rv.base.info.depth)) rv.base = {info:b.info, uci:b.uci};
+    }
+    var after = null, g = new Chess(fen);
+    if (!g.in_checkmate() && !g.in_stalemate() && !g.insufficient_material()){
+      after = await search(fen, {multipv:1, ms:REVIEW_MS});
+      if (gen !== pGen) return undefined;
+    }
+    if (rv) finishReview(rv, after);
+    return after;
+  }
+  function finishReview(rv, after){
+    var r = reviews[rv.ply];
+    if (!r || r.id !== rv.id) return;
+    var g = new Chess(rv.fenAfter);
+    var before = rv.base && rv.base.info ? rv.base.info.score : null, aft;
+    if (g.in_checkmate()) aft = {type:'mate', value:1};
+    else if (g.in_stalemate() || g.insufficient_material()) aft = {type:'cp', value:0};
+    else aft = after && after.info ? negScore(after.info.score) : null;
+    var bestUci = rv.base ? ((rv.base.uci && rv.base.uci !== '(none)') ? rv.base.uci : (rv.base.info && rv.base.info.pv[0])) : null;
+    var c = classify(before, aft, !!bestUci && bestUci === rv.uci);
+    var bl = rv.base && rv.base.info ? sanLine(rv.fenBefore, rv.base.info.pv, 6) : (bestUci ? sanLine(rv.fenBefore, [bestUci], 1) : []);
+    r.status = 'done'; r.cls = c.cls; r.drop = c.drop; r.note = c.note;
+    r.before = before; r.after = aft; r.fenBefore = rv.fenBefore; r.uci = rv.uci;
+    r.bestSan = bl[0] || ''; r.bestLine = bl;
+    r.replyLine = after && after.info ? sanLine(rv.fenAfter, after.info.pv, 5) : [];
+    r.exState = 'none'; r.explain = '';
+    save();
+    renderReview(); renderMoves();
+    if (game.game_over()) renderOverStats();
+    var bad = c.cls === 'inacc' || c.cls === 'mistake' || c.cls === 'blunder';
+    if (AI.ok() && (explainMode === 'semua' || (explainMode === 'silap' && bad))) explainReview(rv.ply);
+  }
+  function explainReview(ply){
+    var r = reviews[ply];
+    if (!r || r.status !== 'done' || r.exState === 'loading' || !AI.ok()) return;
+    r.exState = 'loading'; r.explain = ''; r.exErr = '';
+    renderReview();
+    AI.ask(explainPrompt(r), {tier:ctier, onText:function(u){
+      if (reviews[ply] !== r) return;
+      r.explain = u.text; renderReview();
+    }}).then(function(text){
+      if (reviews[ply] !== r) return;
+      r.explain = String(text).trim(); r.exState = 'done';
+      save(); renderReview();
+    }, function(e){
+      if (reviews[ply] !== r) return;
+      r.exState = e && e.code === 'cancelled' ? 'none' : 'error';
+      r.exErr = aiErrorText(e);
+      if (!(e && e.text) || e.code === 'refused') r.explain = '';
+      else r.explain = e.text;
+      renderReview();
+    });
+  }
+  async function startOpponent(fen){
+    var gen = ++pGen, t0 = Date.now();
+    var rv = pendingReview && pendingReview.fenAfter === fen ? pendingReview : null;
+    pendingReview = null;
+    oppTurn = {fen:fen, status:rv ? 'review' : 'thinking'};
+    renderDuel(); renderTurn();
+    var after = null;
+    if (rv || oppKind === 'sf'){
+      after = await reviewSearch(fen, rv, gen);
+      if (after === undefined) return;
+    }
+    oppTurn.status = 'thinking'; renderDuel();
+    var mv = null, kata = '', note = '', who = 'sf';
+    if (oppKind === 'claude'){
+      var ctl = oppCtl = new AbortController();
+      var r = await claudeMove(fen, 'opponent', ctl.signal);
+      if (gen !== pGen || r.cancelled) return;
+      oppCtl = null;
+      if (r.move){ mv = r.move; kata = r.kata; who = 'claude'; }
+      else note = r.error + ' Stockfish ganti untuk move ni.';
+    }
+    if (!mv){
+      var lv = LEVELS[level];
+      if (lv.full && after && after.uci && after.uci !== '(none)') mv = uciToMove(fen, after.uci);
+      else {
+        var s = await search(fen, lv.full ? {multipv:1, ms:SPEEDS[speed]} : {multipv:lv.mpv, depth:lv.depth, ms:lv.cap});
+        if (gen !== pGen) return;
+        var pick = lv.full ? null : pickMove(s.lines, lv.loss, Math.random);
+        mv = pick && pick.pv.length ? uciToMove(fen, pick.pv[0]) : uciToMove(fen, s.uci);
+      }
+    }
+    var wait = 500 - (Date.now() - t0);
+    if (wait > 0) await sleep(wait);
+    if (gen !== pGen || game.fen() !== fen) return;
+    var res = mv ? game.move({from:mv.from, to:mv.to, promotion:mv.promotion}) : null;
+    if (!res){ oppTurn.status = 'stuck'; renderDuel(); return; }
+    oppLast = {ply:game.history().length - 1, san:res.san, kata:kata, note:note, who:who};
+    oppTurn = null; selected = null;
+    update();
+  }
+
+  /* ---------- panel ---------- */
+  function renderTurn(){
+    if (setup) return;
+    var over = game.game_over(), myTurn = game.turn() === me, opp = me === 'w' ? 'b' : 'w';
+    var turn = $('#turn');
+    turn.querySelector('.dot').className = 'dot ' + game.turn();
+    turn.querySelector('span').textContent = over ? 'Game tamat'
+      : myTurn ? 'Giliran kau · ' + COLOR[me]
+      : (mode === 'latihan' ? 'Lawan fikir · ' : 'Giliran lawan · ') + COLOR[opp];
+    turn.classList.toggle('mine', myTurn && !over);
+  }
+  function oppName(){ return oppKind === 'claude' ? 'Claude' : 'Stockfish'; }
+  function renderDuel(){
+    var card = $('#duel');
+    if (mode !== 'latihan' || setup || game.game_over()){ card.hidden = true; return; }
+    card.hidden = false;
+    var sub = oppKind === 'claude' ? $('#tier-' + ctier).textContent : $('#lv-' + level).textContent;
+    $('#duelKick').textContent = 'Lawan · ' + oppName() + ' (' + sub + ')';
+    var busy = !!oppTurn, stuck = busy && oppTurn.status === 'stuck';
+    card.classList.toggle('is-thinking', busy && !stuck);
+    $('#duelStatus').textContent = busy && !stuck ? (oppTurn.status === 'review' ? 'nilai move kau…' : 'fikir…') : '';
+    var h = game.history({verbose:true}), last = h[h.length - 1];
+    var fresh = !!last && last.color !== me;
+    var mine = oppLast && oppLast.ply === h.length - 1 ? oppLast : null;
+    $('#oppLine').innerHTML = fresh
+      ? esc(mine ? (mine.who === 'claude' ? 'Claude' : 'Stockfish') : 'Lawan') + ' main <b>' + esc(last.san) + '</b>.'
+      : (h.length === 0 ? (fen0 ? 'Posisi yang kau susun.' : 'Game baru. ' + (me === 'w' ? 'Kau buka dulu.' : oppName() + ' buka dulu.')) : '');
+    var say = $('#oppSay');
+    say.hidden = !(fresh && mine && mine.kata);
+    say.innerHTML = !say.hidden ? '<small>Claude</small>' + esc(mine.kata) : '';
+    var note = $('#oppNote');
+    note.hidden = !(fresh && mine && mine.note);
+    note.textContent = !note.hidden ? mine.note : '';
+    var myTurn = game.turn() === me;
+    var hint = hintOn && baseline && baseline.info ? uciToMove(game.fen(), baseline.info.pv[0]) : null;
+    $('#duelNow').textContent = stuck ? 'Lawan tak dapat gerak. Tekan Undo atau Game baru.'
+      : busy ? (oppTurn.status === 'review' ? 'Tengah nilai move kau…' : oppName() + ' tengah fikir…')
+      : !myTurn ? 'Tunggu lawan…'
+      : hint ? 'Hint: Stockfish pilih ' + hint.san + '.'
+      : 'Giliran kau. Gerak piece kat papan.';
+    var hb = $('#hintBtn');
+    hb.hidden = busy || !myTurn;
+    hb.disabled = !(baseline && baseline.info);
+    hb.textContent = hintOn ? 'Sorok hint' : 'Tunjuk hint';
+  }
+  function plyLabel(ply){
+    var h = game.history({verbose:true}), m = h[ply];
+    if (!m) return '';
+    var first = h[0].color, num = (+((fen0 || '').split(' ')[5]) || 1) + Math.floor((ply + (first === 'b' ? 1 : 0)) / 2);
+    return num + (m.color === 'w' ? '. ' : '... ') + m.san;
+  }
+  function renderReview(){
+    var card = $('#reviewCard');
+    var ply = viewPly !== null && reviews[viewPly] ? viewPly : lastReviewPly;
+    var r = ply !== null ? reviews[ply] : null;
+    if (mode !== 'latihan' || setup || !r){ card.hidden = true; return; }
+    card.hidden = false;
+    var latest = ply === lastReviewPly;
+    $('#rvKick').textContent = latest ? 'Review move kau' : 'Review move ' + plyLabel(ply);
+    $('#rvLatest').hidden = latest;
+    var chip = $('#rvCls');
+    if (r.status !== 'done'){
+      $('#rvSan').textContent = r.san;
+      chip.setAttribute('data-cls', ''); chip.textContent = 'Tengah nilai…';
+      $('#rvEval').textContent = ''; $('#rvBest').textContent = ''; $('#rvReply').textContent = '';
+      $('#rvNote').hidden = true; $('#rvExplain').hidden = true; $('#rvAsk').hidden = true;
+      return;
+    }
+    var k = CLS[r.cls] || CLS.unknown;
+    $('#rvSan').textContent = r.san + k.mark;
+    chip.setAttribute('data-cls', r.cls); chip.textContent = k.label;
+    $('#rvEval').innerHTML = r.before && r.after ? 'Nilai: <b>' + esc(evalText(r.before)) + '</b> → <b>' + esc(evalText(r.after)) + '</b>' : '';
+    var bl = r.bestLine || [];
+    $('#rvBest').innerHTML = r.cls === 'best'
+      ? (r.bestSan && r.bestSan !== r.san ? 'Sama kuat dengan pilihan Stockfish (<b>' + esc(r.bestSan) + '</b>).' : 'Sama dengan pilihan Stockfish.')
+      : r.bestSan ? 'Lagi elok: <b>' + esc(r.bestSan) + '</b>' + (bl.length > 1 ? ' · ' + esc(bl.slice(1).join(' ')) : '') : '';
+    var bad = r.cls === 'inacc' || r.cls === 'mistake' || r.cls === 'blunder', rl = r.replyLine || [];
+    $('#rvReply').innerHTML = bad && rl.length ? 'Lepas move kau, lawan boleh balas <b>' + esc(rl[0]) + '</b>' + (rl.length > 1 ? ' · ' + esc(rl.slice(1).join(' ')) : '') : '';
+    var nt = $('#rvNote'); nt.hidden = !r.note; nt.textContent = r.note || '';
+    var st = r.exState || 'none', ex = $('#rvExplain');
+    ex.hidden = st === 'none';
+    ex.classList.toggle('wait', st === 'loading' && !r.explain);
+    if (!ex.hidden){
+      var body = st === 'loading' && !r.explain ? 'Tengah fikir…'
+        : st === 'error' ? (r.explain ? r.explain + '\n\n' : '') + (r.exErr || 'Claude tak dapat terangkan.')
+        : r.explain;
+      ex.innerHTML = '<small>Claude</small>' + esc(body);
+    }
+    var ask = $('#rvAsk');
+    ask.hidden = !AI.ok() || st === 'loading' || st === 'done';
+    ask.textContent = st === 'error' ? 'Tanya Claude sekali lagi' : 'Tanya Claude kenapa';
+  }
+  function renderOverStats(){
+    var box = $('#overStats');
+    if (mode !== 'latihan'){ box.innerHTML = ''; return; }
+    var cnt = {best:0, good:0, inacc:0, mistake:0, blunder:0};
+    Object.keys(reviews).forEach(function(k){ var r = reviews[k]; if (r.status === 'done' && cnt[r.cls] !== undefined) cnt[r.cls]++; });
+    box.innerHTML = Object.keys(cnt).filter(function(k){ return cnt[k]; }).map(function(k){
+      return '<span class="cls" data-cls="' + k + '">' + CLS[k].label + ' · ' + cnt[k] + '</span>';
+    }).join('');
+  }
+  function renderAI(){
+    var el = $('#aiStatus'), txt, cls = '';
+    if (AI.mode === 'pending') txt = 'Tengah sambung ke Claude…';
+    else if (AI.mode === 'artifact'){ txt = 'Claude guna akaun Claude kau. Kali pertama, dia akan minta izin.'; cls = 'ok'; }
+    else if (AI.mode === 'api'){ txt = 'Claude guna API key kau (' + API_NAMES[ctier] + '). Setiap panggilan dicaj ke akaun API Anthropic kau.'; cls = 'ok'; }
+    else if (AI.host === 'standalone'){ txt = 'Untuk guna Claude dalam app ni, masukkan API key Anthropic kau. Key disimpan dalam phone ni je.'; cls = 'off'; }
+    else { txt = AI.msg || 'Claude tak available dalam page ni.'; cls = 'off'; }
+    el.className = 'ai-status' + (cls ? ' ' + cls : '');
+    el.lastChild.textContent = txt;
+    $('#keyForm').hidden = AI.host !== 'standalone';
+    $('#keyClear').hidden = !getApiKey();
+    renderReview();
+  }
+
+  function renderPanel(){
+    var editing = !!setup, lat = mode === 'latihan';
+    ['w', 'b'].forEach(function(s){ $('#side-' + s).setAttribute('aria-pressed', String(me === s)); });
+    ['bantu', 'latihan'].forEach(function(s){ $('#mode-' + s).setAttribute('aria-pressed', String(mode === s)); });
+    ['sf', 'claude'].forEach(function(s){
+      $('#brain-' + s).setAttribute('aria-pressed', String(brain === s));
+      $('#opp-' + s).setAttribute('aria-pressed', String(oppKind === s));
+    });
+    Object.keys(TIERS).forEach(function(s){ $('#tier-' + s).setAttribute('aria-pressed', String(ctier === s)); });
+    Object.keys(EXPLAIN).forEach(function(s){ $('#ex-' + s).setAttribute('aria-pressed', String(explainMode === s)); });
+    Object.keys(SPEEDS).forEach(function(s){ $('#sp-' + s).setAttribute('aria-pressed', String(speed === s)); });
+    Object.keys(LEVELS).forEach(function(s){ $('#lv-' + s).setAttribute('aria-pressed', String(level === s)); });
+    var useSF = lat ? oppKind === 'sf' : brain === 'sf';
+    $('#levelLbl').parentNode.hidden = !useSF;
+    $('#levelSeg').hidden = !useSF;
+    $('#levelDesc').hidden = !useSF;
+    $('#levelDesc').textContent = lat ? LEVEL_LAT[level] : LEVELS[level].desc;
+    $('#speedRow').hidden = !useSF || lat || !LEVELS[level].full;
+    $('#setBrain').hidden = lat;
+    $('#setOpp').hidden = !lat;
+    $('#setExplain').hidden = !lat;
+    $('#setTier').hidden = !(lat || brain === 'claude');
+    $('#brainDesc').textContent = brain === 'claude'
+      ? 'Claude fikir macam manusia dan terangkan idea dia. Dia lagi senang terlepas taktik berbanding Stockfish, jadi pilihan Stockfish ditunjuk sekali.'
+      : 'Stockfish ialah enjin catur. Kira paling tepat, tapi tak terangkan kenapa.';
+    $('#oppDesc').textContent = oppKind === 'claude'
+      ? 'Claude main macam member: kadang bijak, kadang tersilap. Setiap move dia ambil beberapa saat.'
+      : 'Pilih kekuatan Stockfish kat bawah.';
+    $('#tierDesc').textContent = TIER_DESC[ctier];
+    $('#setupCard').hidden = !editing;
+    $('#wrap').classList.toggle('editing', editing);
+    $('#setupBtn').hidden = editing;
+    $('#undo').hidden = editing;
+    $('#movesBlock').hidden = editing;
+    renderAI();
+    if (editing){
+      ['#suggest', '#wait', '#over', '#typer', '#duel', '#reviewCard'].forEach(function(s){ $(s).hidden = true; });
+      renderSetup();
+      return;
+    }
+    var over = game.game_over(), myTurn = game.turn() === me, opp = me === 'w' ? 'b' : 'w';
+    renderTurn();
+    $('#suggest').hidden = lat || over || !myTurn;
+    $('#wait').hidden = lat || over || myTurn;
+    $('#over').hidden = !over;
+    $('#typer').hidden = lat || over;
+    if (over) renderOver();
+    renderDuel(); renderReview();
+    if (!lat && !over && !myTurn){
+      var hist = game.history({verbose:true}), last = hist[hist.length - 1];
+      $('#oppName').textContent = COLOR[opp];
+      $('#waitCtx').innerHTML = last && last.color === me ? 'Kau main <b>' + esc(last.san) + '</b>.' : hist.length === 0 ? (fen0 ? 'Posisi yang kau susun.' : 'Putih buka dulu.') : '';
+    }
+    $('#entryLabel').textContent = myTurn ? 'Move kau (' + COLOR[me] + ')' : 'Move lawan (' + COLOR[opp] + ')';
+    $('#hint').innerHTML = 'Contoh: <code>e5</code>, <code>Nf6</code>, <code>exd5</code>, <code>O-O</code>, <code>e8=Q</code>. Dah separuh game? Paste semua sekali: <code>1. e4 e5 2. Nf3 Nc6</code>';
+    input.placeholder = myTurn ? 'contoh: Nc3' : 'contoh: e5';
+    $('#undo').disabled = game.history().length === 0;
+    renderSuggest(); renderMoves(); renderChips();
+  }
+  function renderSuggest(){
+    var card = $('#suggest');
+    if (card.hidden) return;
+    var hist = game.history({verbose:true}), last = hist[hist.length - 1];
+    $('#ctx').innerHTML = last && last.color !== me ? 'Lawan main <b>' + esc(last.san) + '</b>.' : hist.length === 0 ? (fen0 ? 'Posisi yang kau susun.' : 'Kau buka dulu.') : '';
+    if (useClaudeBrain()){
+      var s = claudeSug && claudeSug.fen === game.fen() ? claudeSug : null;
+      var loading = !s || s.status === 'loading';
+      card.classList.remove('is-thinking');
+      $('#kick').textContent = 'Cadangan Claude';
+      $('#status').textContent = loading ? 'Claude fikir…' : $('#tier-' + ctier).textContent;
+      $('#san').textContent = s && s.move ? s.move.san : '· · ·';
+      $('#words').textContent = s && s.move ? (s.sebab || describe(s.move))
+        : s && s.status === 'error' ? s.err
+        : 'Claude tengah fikir. Boleh ambil beberapa saat.';
+      var scc = info && info.score;
+      $('#verdict').innerHTML = scc ? esc(verdict(scc)) : '&nbsp;';
+      $('#evalnum').textContent = scc ? evalText(scc) : '';
+      $('#evalFill').style.width = evalPct(scc).toFixed(1) + '%';
+      $('#pv').innerHTML = best
+        ? (s && s.move && s.move.san === best.san ? 'Stockfish setuju: <span>' + esc(best.san) + '</span>' : 'Stockfish pilih: <span>' + esc(best.san) + '</span>' + (pvLine.length > 1 ? ' · ' + esc(pvLine.slice(1).map(function(m){ return m.san; }).join(' ')) : ''))
+        : (thinking ? 'Stockfish tengah kira…' : '');
+      var cb = $('#playBest');
+      cb.disabled = !(s && s.move);
+      cb.textContent = s && s.move ? 'Main ' + s.move.san : 'Main move ni';
+      return;
+    }
+    card.classList.toggle('is-thinking', thinking);
+    var full = LEVELS[level].full, lvName = $('#lv-' + level).textContent;
+    $('#kick').textContent = full ? 'Best move untuk kau' : 'Cadangan untuk kau';
+    $('#status').textContent = !Engine.ready ? 'load enjin…'
+      : (full ? '' : lvName + ' · ') + (thinking ? (info && info.depth < 100 ? 'fikir · depth ' + info.depth : 'fikir…') : (info && info.depth < 100 ? 'depth ' + info.depth : ''));
+    $('#san').textContent = best ? best.san : '· · ·';
+    $('#words').textContent = best ? describe(best) : (!Engine.ready ? 'Kali pertama ambil masa sikit untuk load Stockfish.' : 'Tengah kira…');
+    var sc = info && info.score;
+    $('#verdict').innerHTML = sc ? esc(verdict(sc)) : '&nbsp;';
+    $('#evalnum').textContent = sc ? evalText(sc) : '';
+    $('#evalFill').style.width = evalPct(sc).toFixed(1) + '%';
+    $('#pv').innerHTML = pvLine.length > 1 ? 'Line: ' + fmtLine(game.fen(), pvLine) : '';
+    var btn = $('#playBest');
+    btn.disabled = !best;
+    btn.textContent = best ? 'Main ' + best.san : 'Main move ni';
+  }
+  function renderOver(){
+    var t, s;
+    if (game.in_checkmate()){
+      if (game.turn() === me){ t = 'Kena mat.'; s = mode === 'latihan' ? oppName() + ' menang kali ni. Tekan move kau dalam senarai untuk tengok review.' : 'Lawan menang kali ni. Ajak rematch.'; }
+      else { t = 'Checkmate. Kau menang!'; s = mode === 'latihan' ? 'Good game. Tekan move kau dalam senarai untuk tengok review.' : 'Good game.'; }
+    } else if (game.in_stalemate()){ t = 'Seri: stalemate'; s = 'Raja tak kena check tapi takde move sah.'; }
+    else if (game.in_threefold_repetition()){ t = 'Seri: ulang tiga kali'; s = 'Posisi sama berulang tiga kali.'; }
+    else if (game.insufficient_material()){ t = 'Seri: material tak cukup'; s = 'Dua-dua belah dah tak boleh mat.'; }
+    else { t = 'Seri: peraturan 50 move'; s = '50 move tanpa makan atau gerak pawn.'; }
+    $('#overTitle').textContent = t; $('#overSub').textContent = s;
+    renderOverStats();
+  }
+  function renderMoves(){
+    var h = game.history({verbose:true}), el = $('#moves');
+    if (!h.length){ el.innerHTML = '<p class="empty">' + (fen0 ? 'Mula dari posisi yang kau susun. Belum ada move lagi.' : 'Belum ada move lagi.') + '</p>'; return; }
+    function cell(i){
+      var c = [i === h.length - 1 ? 'last' : '', h[i].color === me ? 'mine' : ''];
+      var r = mode === 'latihan' ? reviews[i] : null;
+      if (r && r.status === 'done' && CLS[r.cls]){
+        c.push('cls-' + r.cls);
+        if (viewPly === i) c.push('viewing');
+        return '<button type="button" class="mv ' + c.join(' ').trim() + '" data-ply="' + i + '" aria-label="Review ' + esc(h[i].san) + ': ' + CLS[r.cls].label + '">' +
+          esc(h[i].san) + (CLS[r.cls].mark ? '<span class="mk">' + CLS[r.cls].mark + '</span>' : '') + '</button>';
+      }
+      return '<span class="' + c.join(' ').trim() + '">' + esc(h[i].san) + '</span>';
+    }
+    var start = (fen0 || '').split(' '), num = +start[5] || 1, html = '', i = 0;
+    if (h[0].color === 'b'){
+      html += '<span class="n">' + num + '.</span><span>…</span>' + cell(0);
+      i = 1; num++;
+    }
+    for (; i < h.length; i += 2, num++){
+      html += '<span class="n">' + num + '.</span>' + cell(i) + (i + 1 < h.length ? cell(i + 1) : '<span></span>');
+    }
+    el.innerHTML = html;
+    if (viewPly === null) el.scrollTop = el.scrollHeight;
+  }
+  function renderChips(){
+    var box = $('#chips'); box.innerHTML = '';
+    var v = input.value.trim();
+    if (!v || /\s/.test(v) || game.game_over()) return;
+    var k = moveKey(v), lv = v.toLowerCase();
+    game.moves({verbose:true}).filter(function(m){
+      return moveKey(m.san).indexOf(k) === 0 || (m.from + m.to).indexOf(lv) === 0;
+    }).slice(0, 12).forEach(function(m){
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'chip'; b.textContent = m.san;
+      b.addEventListener('click', function(){ play({from:m.from, to:m.to, promotion:m.promotion}); });
+      box.appendChild(b);
+    });
+  }
+  function renderEngine(){
+    var el = $('#engine');
+    el.classList.remove('loading', 'ok');
+    if (Engine.kind === 'sf'){ el.classList.add('ok'); el.lastChild.textContent = 'Stockfish 10 sedia'; }
+    else if (Engine.kind === 'lite'){ el.lastChild.textContent = 'Stockfish tak dapat load. Guna enjin ringkas (lemah sikit).'; }
+    else { el.classList.add('loading'); el.lastChild.textContent = 'Tengah load Stockfish…'; }
+    renderSuggest();
+  }
+
+  /* ---------- input ---------- */
+  function submitText(raw){
+    var toks = tokenize(raw);
+    if (!toks.length) return;
+    var n = 0, err = '';
+    for (var i = 0; i < toks.length; i++){
+      if (game.game_over()) break;
+      var r = resolveMove(game, toks[i]);
+      if (r.error){
+        err = r.error;
+        if (n === 0 && toks.length === 1 && otherSideMove(toks[i])){
+          err = game.turn() === me
+            ? 'Sekarang giliran kau. Kalau kau dah main ' + (best ? best.san : 'move kau') + ' kat papan, tekan "Main ' + (best ? best.san : 'move ni') + '" dulu, baru masuk move lawan.'
+            : 'Sekarang giliran lawan. Masukkan move lawan dulu.';
+        }
+        if (n) err = n + ' move dah masuk. Berhenti kat "' + toks[i] + '": ' + err;
+        break;
+      }
+      game.move({from:r.move.from, to:r.move.to, promotion:r.move.promotion});
+      n++;
+    }
+    if (n){ input.value = ''; selected = null; update(); }
+    setMsg(err);
+    renderChips();
+  }
+
+  function newGame(){
+    stopAll();
+    reviews = {}; lastReviewPly = null; viewPly = null; oppLast = null;
+    game.reset(); selected = null; analysedFen = null; fen0 = null; setup = null;
+    Engine.newGame(); setMsg(''); input.value = '';
+    update();
+  }
+  function armNewGame(btn){
+    if (!game.history().length) return newGame();
+    if (btn.classList.contains('warn')){ clearTimeout(confirmTimer); btn.classList.remove('warn'); btn.textContent = 'Game baru'; return newGame(); }
+    btn.classList.add('warn'); btn.textContent = 'Tekan lagi untuk reset';
+    confirmTimer = setTimeout(function(){ btn.classList.remove('warn'); btn.textContent = 'Game baru'; }, 3000);
+  }
+
+  $('#entry').addEventListener('submit', function(e){ e.preventDefault(); submitText(input.value); });
+  input.addEventListener('input', function(){ setMsg(''); renderChips(); });
+  input.addEventListener('keydown', function(e){ if (e.key === 'Escape'){ input.value = ''; renderChips(); } });
+  $('#playBest').addEventListener('click', function(){
+    var mv = arrowMove();
+    if (mv && mv.fenBefore === game.fen()) play({from:mv.from, to:mv.to, promotion:mv.promotion});
+  });
+  $('#undo').addEventListener('click', function(){
+    if (mode === 'latihan'){
+      // Take back the opponent's reply and my move together
+      cancelPractice();
+      var h = game.history({verbose:true});
+      if (h.length && h[h.length - 1].color !== me) game.undo();
+      h = game.history({verbose:true});
+      if (h.length && h[h.length - 1].color === me) game.undo();
+      oppLast = null;
+    } else {
+      game.undo();
+    }
+    pruneReviews();
+    selected = null; analysedFen = null; setMsg(''); update();
+  });
+  $('#modeSeg').addEventListener('click', function(e){
+    var b = e.target.closest('button'); if (!b || b.dataset.mode === mode) return;
+    stopAll();
+    mode = b.dataset.mode; oppLast = null;
+    update();
+  });
+  $('#brainSeg').addEventListener('click', function(e){
+    var b = e.target.closest('button'); if (!b || b.dataset.brain === brain) return;
+    brain = b.dataset.brain;
+    if (sugCtl){ sugCtl.abort(); sugCtl = null; }
+    claudeSug = null;
+    update();
+  });
+  $('#oppSeg').addEventListener('click', function(e){
+    var b = e.target.closest('button'); if (!b || b.dataset.opp === oppKind) return;
+    oppKind = b.dataset.opp;
+    if (oppTurn){ cancelPractice(); pruneReviews(); }
+    update();
+  });
+  $('#tierSeg').addEventListener('click', function(e){
+    var b = e.target.closest('button'); if (!b || b.dataset.tier === ctier) return;
+    ctier = b.dataset.tier;
+    update();
+  });
+  $('#explainSeg').addEventListener('click', function(e){
+    var b = e.target.closest('button'); if (!b || b.dataset.explain === explainMode) return;
+    explainMode = b.dataset.explain;
+    save(); renderPanel();
+  });
+  $('#hintBtn').addEventListener('click', function(){
+    hintOn = !hintOn;
+    renderDuel(); drawArrow();
+  });
+  $('#rvAsk').addEventListener('click', function(){
+    var ply = viewPly !== null && reviews[viewPly] ? viewPly : lastReviewPly;
+    if (ply !== null) explainReview(ply);
+  });
+  $('#rvLatest').addEventListener('click', function(){ viewPly = null; renderReview(); renderMoves(); });
+  $('#moves').addEventListener('click', function(e){
+    var b = e.target.closest('.mv'); if (!b) return;
+    var p = +b.getAttribute('data-ply');
+    viewPly = p === lastReviewPly ? null : p;
+    renderReview(); renderMoves();
+    var card = $('#reviewCard');
+    if (!card.hidden && window.innerWidth <= 820){ try { card.scrollIntoView({block:'nearest'}); } catch(_){} }
+  });
+  $('#keyForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var v = $('#apiKey').value.trim();
+    if (!v) return;
+    try { localStorage.setItem(KEY_API, v); } catch(_){}
+    $('#apiKey').value = '';
+    AI.mode = getApiKey() ? 'api' : 'none';
+    claudeSug = null;
+    update();
+  });
+  $('#keyClear').addEventListener('click', function(){
+    try { localStorage.removeItem(KEY_API); } catch(_){}
+    AI.mode = 'none';
+    stopAll();
+    update();
+  });
+  $('#newGame').addEventListener('click', function(){ armNewGame(this); });
+  $('#newGame2').addEventListener('click', function(){ newGame(); });
+  $('#sideSeg').addEventListener('click', function(e){
+    var b = e.target.closest('button'); if (!b || b.dataset.side === me) return;
+    stopAll();
+    if (mode === 'latihan'){ reviews = {}; lastReviewPly = null; viewPly = null; oppLast = null; }
+    me = b.dataset.side; selected = null; analysedFen = null; setMsg('');
+    update();
+  });
+  $('#levelSeg').addEventListener('click', function(e){
+    var b = e.target.closest('button'); if (!b || b.dataset.level === level) return;
+    level = b.dataset.level; analysedFen = null;
+    update();
+  });
+  $('#speedSeg').addEventListener('click', function(e){
+    var b = e.target.closest('button'); if (!b || b.dataset.speed === speed) return;
+    speed = b.dataset.speed; analysedFen = null;
+    update();
+  });
+
+  // board editor controls
+  $('#setupBtn').addEventListener('click', enterSetup);
+  $('#setupCancel').addEventListener('click', cancelSetup);
+  $('#setupDone').addEventListener('click', finishSetup);
+  $('#palette').addEventListener('click', function(e){
+    var b = e.target.closest('button'); if (!b || !setup) return;
+    setup.tool = b.dataset.tool; selected = null;
+    renderBoard(); renderSetup();
+  });
+  $('#turnSeg').addEventListener('click', function(e){
+    var b = e.target.closest('button'); if (!b || !setup) return;
+    setup.mine = b.dataset.mine === '1';
+    renderSetup();
+  });
+  $('#setupStart').addEventListener('click', function(){
+    if (!setup) return;
+    setup.pos = posFromBoard(new Chess().board()); setup.mine = me === 'w'; selected = null;
+    setupChanged();
+  });
+  $('#setupClear').addEventListener('click', function(){
+    if (!setup) return;
+    var kw = kingSq('w') || 'e1', kb = kingSq('b') || 'e8';
+    setup.pos = {}; setup.pos[kw] = {type:'k', color:'w'}; setup.pos[kb] = {type:'k', color:'b'};
+    selected = null;
+    setupChanged();
+  });
+  $('#fenForm').addEventListener('submit', function(e){ e.preventDefault(); applyFen(); });
+
+  buildBoard();
+  Engine.start();
+  AI.init();
+  update();
+}
+})();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
+}
+</script>
+</body>
+</html>
