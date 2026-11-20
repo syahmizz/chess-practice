@@ -498,6 +498,7 @@ h2 small{font-weight:500;letter-spacing:0;text-transform:none}
           <h2 id="brainLbl">Siapa bagi cadangan</h2>
           <div class="seg seg-full" id="brainSeg" role="group" aria-labelledby="brainLbl">
             <button type="button" id="brain-sf" data-brain="sf" aria-pressed="true">Stockfish</button>
+            <button type="button" id="brain-maia" data-brain="maia" aria-pressed="false">Maia</button>
             <button type="button" id="brain-claude" data-brain="claude" aria-pressed="false">Claude</button>
           </div>
           <p class="setdesc" id="brainDesc"></p>
@@ -506,9 +507,22 @@ h2 small{font-weight:500;letter-spacing:0;text-transform:none}
           <h2 id="oppLbl">Lawan aku</h2>
           <div class="seg seg-full" id="oppSeg" role="group" aria-labelledby="oppLbl">
             <button type="button" id="opp-sf" data-opp="sf" aria-pressed="true">Stockfish</button>
+            <button type="button" id="opp-maia" data-opp="maia" aria-pressed="false">Maia</button>
             <button type="button" id="opp-claude" data-opp="claude" aria-pressed="false">Claude</button>
           </div>
           <p class="setdesc" id="oppDesc"></p>
+        </div>
+        <div class="set" id="setMaia" hidden>
+          <h2 id="maiaLbl">Rating Maia</h2>
+          <div class="seg seg-full" id="maiaSeg" role="group" aria-labelledby="maiaLbl">
+            <button type="button" id="elo-1100" data-elo="1100" aria-pressed="false">1100</button>
+            <button type="button" id="elo-1300" data-elo="1300" aria-pressed="false">1300</button>
+            <button type="button" id="elo-1500" data-elo="1500" aria-pressed="true">1500</button>
+            <button type="button" id="elo-1700" data-elo="1700" aria-pressed="false">1700</button>
+            <button type="button" id="elo-1900" data-elo="1900" aria-pressed="false">1900</button>
+          </div>
+          <p class="setdesc" id="maiaDesc"></p>
+          <p class="ai-status" id="maiaStatus"><i class="edot"></i><span>Maia belum dimuat.</span></p>
         </div>
         <div class="set" id="setExplain" hidden>
           <h2 id="explainLbl">Claude terangkan move aku</h2>
@@ -826,8 +840,10 @@ function App(){
   var setup = null, fen0 = null;
   var input = $('#mv');
   // modes & Claude settings
-  var mode = 'bantu', brain = 'sf', oppKind = 'sf', ctier = 'default', explainMode = 'silap';
+  var mode = 'bantu', brain = 'sf', oppKind = 'sf', ctier = 'default', explainMode = 'silap', maiaElo = 1500;
   var TIERS = {quick:1, 'default':1, complex:1}, EXPLAIN = {semua:1, silap:1, tutup:1};
+  var KINDS = {sf:1, maia:1, claude:1}, ELOS = [1100, 1300, 1500, 1700, 1900];
+  var maiaSug = null;
   // practice state
   var reviews = {}, lastReviewPly = null, viewPly = null, pendingReview = null;
   var pGen = 0, baseline = null, oppTurn = null, oppLast = null, hintOn = false, oppCtl = null;
@@ -843,8 +859,9 @@ function App(){
       if (SPEEDS[saved.speed]) speed = saved.speed;
       if (LEVELS[saved.level]) level = saved.level;
       if (saved.mode === 'latihan') mode = 'latihan';
-      if (saved.brain === 'claude') brain = 'claude';
-      if (saved.oppKind === 'claude') oppKind = 'claude';
+      if (KINDS[saved.brain]) brain = saved.brain;
+      if (KINDS[saved.oppKind]) oppKind = saved.oppKind;
+      if (ELOS.indexOf(saved.maiaElo) >= 0) maiaElo = saved.maiaElo;
       if (TIERS[saved.ctier]) ctier = saved.ctier;
       if (EXPLAIN[saved.explainMode]) explainMode = saved.explainMode;
       if (saved.fen0 && game.load(saved.fen0)) fen0 = saved.fen0;
@@ -867,7 +884,7 @@ function App(){
     try {
       var rv = {};
       Object.keys(reviews).forEach(function(k){ var r = reviews[k]; if (r && r.status === 'done') rv[k] = r; });
-      localStorage.setItem(KEY, JSON.stringify({me:me, speed:speed, level:level, mode:mode, brain:brain, oppKind:oppKind,
+      localStorage.setItem(KEY, JSON.stringify({me:me, speed:speed, level:level, mode:mode, brain:brain, oppKind:oppKind, maiaElo:maiaElo,
         ctier:ctier, explainMode:explainMode, fen0:fen0, moves:game.history(), reviews:rv}));
     } catch(e){}
   }
@@ -877,11 +894,14 @@ function App(){
     w:null, kind:'loading', ready:false, seq:0, latest:0, busy:null, next:null, stopping:false, want:null,
     start:function(){
       var self = this;
+      // Stockfish 19 (WASM) first; Stockfish 10 (plain JS) only if the browser can't run it
       var sources = [
+        function(){ return new Worker('stockfish-19-lite-single.js'); },
         function(){ return new Worker('stockfish.js'); },
         function(){ return blobWorker('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js'); },
         function(){ return blobWorker('https://cdn.jsdelivr.net/npm/stockfish.js@10.0.2/stockfish.js'); }
       ];
+      var names = ['Stockfish 19', 'Stockfish 10', 'Stockfish 10', 'Stockfish 10'];
       function tryNext(i){
         if (i >= sources.length) return self.useLite();
         var w, done = false, timer;
@@ -894,7 +914,7 @@ function App(){
         timer = setTimeout(fail, 25000);
         w.onerror = function(e){ if (e && e.preventDefault) e.preventDefault(); fail(); };
         w.onmessage = function(e){
-          if (String(e.data).indexOf('uciok') === 0 && !done){ done = true; clearTimeout(timer); self.attach(w); }
+          if (String(e.data).indexOf('uciok') === 0 && !done){ done = true; clearTimeout(timer); self.name = names[i]; self.attach(w); }
         };
         w.postMessage('uci');
       }
@@ -1147,6 +1167,95 @@ function App(){
     ].join('\n');
   }
 
+  /* ---------- Maia (human-like engine) ---------- */
+  // Loaded only when picked: a 130 KB module, the ONNX runtime (15 MB) and the model in two parts (22.5 MB)
+  // The model is stored as two base64 text parts so every file stays a plain web type
+  var MAIA_PARTS = ['maia/maia3-5m.part1.b64.txt', 'maia/maia3-5m.part2.b64.txt'];
+  var MAIA_MB = 37;
+  var Maia = {
+    state:'idle', err:'', got:0, total:0, inst:null, p:null,
+    load:function(){
+      if (this.p) return this.p;
+      var self = this;
+      this.state = 'loading'; this.got = 0; this.total = 0; this.err = '';
+      onMaiaState();
+      this.p = (async function(){
+        var lib = await import(new URL('maia/maia-engine.mjs', location.href).href);
+        var texts = await Promise.all(MAIA_PARTS.map(function(u){ return fetchCounted(u, self); }));
+        var bufs = texts.map(b64ToBytes);
+        var size = bufs.reduce(function(n, b){ return n + b.byteLength; }, 0), bytes = new Uint8Array(size), off = 0;
+        bufs.forEach(function(b){ bytes.set(b, off); off += b.byteLength; });
+        var m = new lib.Maia3({variant:'5m', modelBytes:bytes.buffer, numThreads:1,
+          wasmPaths:{wasm:new URL('maia/ort-wasm-simd-threaded.wasm', location.href).href}});
+        await m.load();
+        self.inst = m; self.state = 'ready';
+        onMaiaState();
+        return m;
+      })().catch(function(e){
+        self.state = 'error'; self.p = null;
+        self.err = 'Maia tak dapat dimuat. Check internet, lepas tu tekan mana-mana rating untuk cuba lagi.';
+        try { console.warn('Maia load failed', e); } catch(_){}
+        onMaiaState();
+        throw e;
+      });
+      return this.p;
+    },
+    // Predict for the current game position, using the game so far as history
+    predict:async function(fen, elo, opts){
+      var m = await this.load();
+      var h = game.history({verbose:true});
+      var input = {fen:fen, selfElo:elo, topK:(opts && opts.topK) || 0};
+      if (opts && opts.temperature){ input.temperature = opts.temperature; input.topP = opts.topP || 1; }
+      if (fen === game.fen() && h.length){
+        input.priorMoves = h.map(uciOf);
+        if (fen0) input.baseFen = fen0;
+      }
+      try { return await m.predict(input); }
+      catch(e){
+        if (!input.priorMoves) throw e;
+        delete input.priorMoves; delete input.baseFen;
+        return m.predict(input);
+      }
+    }
+  };
+  function uciOf(m){ return m.from + m.to + (m.promotion || ''); }
+  function b64ToBytes(buf){
+    var bin = atob(new TextDecoder().decode(buf).trim()), out = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  async function fetchCounted(url, owner){
+    var r = await fetch(url);
+    if (!r.ok) throw new Error('HTTP ' + r.status + ' for ' + url);
+    var len = +r.headers.get('content-length') || 0;
+    owner.total += len || 15033348;
+    if (!r.body || !r.body.getReader) { var whole = await r.arrayBuffer(); owner.got += whole.byteLength; onMaiaState(); return whole; }
+    var reader = r.body.getReader(), chunks = [], n = 0, last = 0;
+    for (;;){
+      var c = await reader.read();
+      if (c.done) break;
+      chunks.push(c.value); n += c.value.byteLength; owner.got += c.value.byteLength;
+      if (Date.now() - last > 250){ last = Date.now(); onMaiaState(); }
+    }
+    var out = new Uint8Array(n), o = 0;
+    chunks.forEach(function(ch){ out.set(ch, o); o += ch.byteLength; });
+    return out.buffer;
+  }
+  function maiaStatusText(){
+    if (Maia.state === 'ready') return 'Maia sedia.';
+    if (Maia.state === 'loading') return Maia.total
+      ? 'Tengah muat turun Maia… ' + Math.min(99, Math.round(100 * Maia.got / Maia.total)) + '%'
+      : 'Tengah muat Maia…';
+    if (Maia.state === 'error') return Maia.err;
+    return 'Maia dimuat bila kau guna dia. Kali pertama muat turun lebih kurang ' + MAIA_MB + ' MB.';
+  }
+  function renderMaiaStatus(){
+    var el = $('#maiaStatus');
+    el.className = 'ai-status' + (Maia.state === 'ready' ? ' ok' : Maia.state === 'error' ? ' off' : '');
+    el.lastChild.textContent = maiaStatusText();
+  }
+  function onMaiaState(){ renderMaiaStatus(); renderSuggest(); renderDuel(); drawArrow(); }
+
   /* ---------- fallback engine (only if Stockfish can't load) ---------- */
   var VAL = {p:100, n:320, b:330, r:500, q:900, k:0};
   var PST = {
@@ -1318,7 +1427,7 @@ function App(){
     var svg = $('#arrows');
     var mv = arrowMove();
     if (!mv){ svg.innerHTML = ''; return; }
-    var live = mode === 'latihan' ? !!(baseline && !baseline.done) : (!useClaudeBrain() && thinking);
+    var live = mode === 'latihan' ? !!(baseline && !baseline.done) : (!useClaudeBrain() && !useMaiaBrain() && thinking);
     function c(sq){
       var f = FILES.indexOf(sq[0]), r = +sq[1];
       var x = me === 'b' ? 7 - f : f, y = me === 'b' ? r - 1 : 8 - r;
@@ -1681,10 +1790,11 @@ function App(){
       if (thinking || analysedFen) Engine.cancel();
       thinking = false; best = null; pvLine = []; info = null; analysedFen = null;
       if (sugCtl){ sugCtl.abort(); sugCtl = null; }
-      claudeSug = null;
+      claudeSug = null; maiaSug = null;
       return;
     }
     if (brain === 'claude') requestClaudeSuggestion(fen);
+    if (brain === 'maia' && Maia.state !== 'error') requestMaiaSuggestion(fen);
     if (analysedFen === fen) return;
     analysedFen = fen; best = null; pvLine = []; info = null; thinking = true;
     renderSuggest(); drawArrow();
@@ -1753,6 +1863,44 @@ function App(){
     });
   }
   function useClaudeBrain(){ return mode === 'bantu' && brain === 'claude' && AI.mode !== 'none'; }
+  function useMaiaBrain(){ return mode === 'bantu' && brain === 'maia' && Maia.state !== 'error'; }
+  function requestMaiaSuggestion(fen){
+    if (maiaSug && maiaSug.fen === fen && maiaSug.elo === maiaElo && maiaSug.status !== 'error') return;
+    var s = maiaSug = {fen:fen, elo:maiaElo, status:'loading'};
+    renderSuggest();
+    Maia.predict(fen, maiaElo, {topK:3}).then(function(r){
+      if (maiaSug !== s || game.fen() !== fen) return;
+      var mv = uciToMove(fen, r.bestMove);
+      if (!mv){ s.status = 'error'; s.err = 'Maia tak jumpa move untuk posisi ni.'; }
+      else {
+        s.status = 'done'; s.move = mv; mv.fenBefore = fen;
+        s.prob = r.moves.get(r.bestMove) || 0;
+        s.alts = r.candidates.filter(function(c){ return c.uci !== r.bestMove; }).slice(0, 2).map(function(c){
+          var m = uciToMove(fen, c.uci); return m ? {san:m.san, p:c.probability} : null;
+        }).filter(Boolean);
+      }
+      renderSuggest(); drawArrow();
+    }, function(){
+      if (maiaSug !== s) return;
+      s.status = 'error'; s.err = Maia.err || 'Maia tak dapat dimuat.';
+      renderSuggest();
+    });
+  }
+  function pct(p){ return Math.round(100 * p) + '%'; }
+  // Stockfish's view beside a Maia or Claude suggestion, plus the play button for that move
+  function renderSfCompare(mv){
+    var sc = info && info.score;
+    $('#verdict').innerHTML = sc ? esc(verdict(sc)) : '&nbsp;';
+    $('#evalnum').textContent = sc ? evalText(sc) : '';
+    $('#evalFill').style.width = evalPct(sc).toFixed(1) + '%';
+    $('#pv').innerHTML = best
+      ? (mv && mv.san === best.san ? 'Stockfish setuju: <span>' + esc(best.san) + '</span>'
+        : 'Stockfish pilih: <span>' + esc(best.san) + '</span>' + (pvLine.length > 1 ? ' · ' + esc(pvLine.slice(1).map(function(m){ return m.san; }).join(' ')) : ''))
+      : (thinking ? 'Stockfish tengah kira…' : '');
+    var cb = $('#playBest');
+    cb.disabled = !mv;
+    cb.textContent = mv ? 'Main ' + mv.san : 'Main move ni';
+  }
   // The move the board arrow points at, if any
   function arrowMove(){
     if (setup || game.game_over() || game.turn() !== me) return null;
@@ -1764,6 +1912,7 @@ function App(){
       return m;
     }
     if (useClaudeBrain()) return claudeSug && claudeSug.fen === fen && claudeSug.move ? claudeSug.move : null;
+    if (useMaiaBrain()) return maiaSug && maiaSug.fen === fen && maiaSug.move ? maiaSug.move : null;
     return best && best.fenBefore === fen ? best : null;
   }
 
@@ -1912,7 +2061,21 @@ function App(){
       if (after === undefined) return;
     }
     oppTurn.status = 'thinking'; renderDuel();
-    var mv = null, kata = '', note = '', who = 'sf';
+    var mv = null, kata = '', note = '', who = 'sf', mprob = 0;
+    if (oppKind === 'maia'){
+      // Sample from Maia's move distribution so it plays like a person at that rating, mistakes included
+      if (Maia.state !== 'ready'){ oppTurn.status = 'loading'; renderDuel(); }
+      try {
+        var pr = await Maia.predict(fen, maiaElo, {temperature:1, topP:0.9});
+        if (gen !== pGen) return;
+        mv = uciToMove(fen, pr.bestMove);
+        if (mv){ who = 'maia'; mprob = pr.moves.get(pr.bestMove) || 0; }
+      } catch(e){
+        if (gen !== pGen) return;
+        note = 'Maia tak dapat dimuat. Stockfish ganti untuk move ni.';
+      }
+      oppTurn.status = 'thinking';
+    }
     if (oppKind === 'claude'){
       var ctl = oppCtl = new AbortController();
       var r = await claudeMove(fen, 'opponent', ctl.signal);
@@ -1936,7 +2099,7 @@ function App(){
     if (gen !== pGen || game.fen() !== fen) return;
     var res = mv ? game.move({from:mv.from, to:mv.to, promotion:mv.promotion}) : null;
     if (!res){ oppTurn.status = 'stuck'; renderDuel(); return; }
-    oppLast = {ply:game.history().length - 1, san:res.san, kata:kata, note:note, who:who};
+    oppLast = {ply:game.history().length - 1, san:res.san, kata:kata, note:note, who:who, prob:mprob};
     oppTurn = null; selected = null;
     update();
   }
@@ -1952,12 +2115,13 @@ function App(){
       : (mode === 'latihan' ? 'Lawan fikir · ' : 'Giliran lawan · ') + COLOR[opp];
     turn.classList.toggle('mine', myTurn && !over);
   }
-  function oppName(){ return oppKind === 'claude' ? 'Claude' : 'Stockfish'; }
+  function oppName(){ return oppKind === 'claude' ? 'Claude' : oppKind === 'maia' ? 'Maia' : 'Stockfish'; }
+  function whoName(w){ return w === 'claude' ? 'Claude' : w === 'maia' ? 'Maia' : 'Stockfish'; }
   function renderDuel(){
     var card = $('#duel');
     if (mode !== 'latihan' || setup || game.game_over()){ card.hidden = true; return; }
     card.hidden = false;
-    var sub = oppKind === 'claude' ? $('#tier-' + ctier).textContent : $('#lv-' + level).textContent;
+    var sub = oppKind === 'claude' ? $('#tier-' + ctier).textContent : oppKind === 'maia' ? String(maiaElo) : $('#lv-' + level).textContent;
     $('#duelKick').textContent = 'Lawan · ' + oppName() + ' (' + sub + ')';
     var busy = !!oppTurn, stuck = busy && oppTurn.status === 'stuck';
     card.classList.toggle('is-thinking', busy && !stuck);
@@ -1966,7 +2130,8 @@ function App(){
     var fresh = !!last && last.color !== me;
     var mine = oppLast && oppLast.ply === h.length - 1 ? oppLast : null;
     $('#oppLine').innerHTML = fresh
-      ? esc(mine ? (mine.who === 'claude' ? 'Claude' : 'Stockfish') : 'Lawan') + ' main <b>' + esc(last.san) + '</b>.'
+      ? esc(mine ? whoName(mine.who) : 'Lawan') + ' main <b>' + esc(last.san) + '</b>.' +
+        (mine && mine.who === 'maia' && mine.prob ? ' ' + pct(mine.prob) + ' pemain rating ' + maiaElo + ' pilih move ni.' : '')
       : (h.length === 0 ? (fen0 ? 'Posisi yang kau susun.' : 'Game baru. ' + (me === 'w' ? 'Kau buka dulu.' : oppName() + ' buka dulu.')) : '');
     var say = $('#oppSay');
     say.hidden = !(fresh && mine && mine.kata);
@@ -1977,7 +2142,7 @@ function App(){
     var myTurn = game.turn() === me;
     var hint = hintOn && baseline && baseline.info ? uciToMove(game.fen(), baseline.info.pv[0]) : null;
     $('#duelNow').textContent = stuck ? 'Lawan tak dapat gerak. Tekan Undo atau Game baru.'
-      : busy ? (oppTurn.status === 'review' ? 'Tengah nilai move kau…' : oppName() + ' tengah fikir…')
+      : busy ? (oppTurn.status === 'review' ? 'Tengah nilai move kau…' : oppTurn.status === 'loading' ? maiaStatusText() : oppName() + ' tengah fikir…')
       : !myTurn ? 'Tunggu lawan…'
       : hint ? 'Hint: Stockfish pilih ' + hint.san + '.'
       : 'Giliran kau. Gerak piece kat papan.';
@@ -2060,10 +2225,17 @@ function App(){
     var editing = !!setup, lat = mode === 'latihan';
     ['w', 'b'].forEach(function(s){ $('#side-' + s).setAttribute('aria-pressed', String(me === s)); });
     ['bantu', 'latihan'].forEach(function(s){ $('#mode-' + s).setAttribute('aria-pressed', String(mode === s)); });
-    ['sf', 'claude'].forEach(function(s){
+    ['sf', 'maia', 'claude'].forEach(function(s){
       $('#brain-' + s).setAttribute('aria-pressed', String(brain === s));
       $('#opp-' + s).setAttribute('aria-pressed', String(oppKind === s));
     });
+    ELOS.forEach(function(e){ $('#elo-' + e).setAttribute('aria-pressed', String(maiaElo === e)); });
+    var useMaia = lat ? oppKind === 'maia' : brain === 'maia';
+    $('#setMaia').hidden = !useMaia;
+    $('#maiaDesc').textContent = lat
+      ? 'Maia main macam manusia rating ' + maiaElo + ', termasuk silap yang manusia biasa buat.'
+      : 'Maia tunjuk move yang pemain rating ' + maiaElo + ' paling mungkin main. Bukan semestinya move terbaik.';
+    renderMaiaStatus();
     Object.keys(TIERS).forEach(function(s){ $('#tier-' + s).setAttribute('aria-pressed', String(ctier === s)); });
     Object.keys(EXPLAIN).forEach(function(s){ $('#ex-' + s).setAttribute('aria-pressed', String(explainMode === s)); });
     Object.keys(SPEEDS).forEach(function(s){ $('#sp-' + s).setAttribute('aria-pressed', String(speed === s)); });
@@ -2080,9 +2252,13 @@ function App(){
     $('#setTier').hidden = !(lat || brain === 'claude');
     $('#brainDesc').textContent = brain === 'claude'
       ? 'Claude fikir macam manusia dan terangkan idea dia. Dia lagi senang terlepas taktik berbanding Stockfish, jadi pilihan Stockfish ditunjuk sekali.'
-      : 'Stockfish ialah enjin catur. Kira paling tepat, tapi tak terangkan kenapa.';
+      : brain === 'maia'
+      ? 'Maia dilatih dengan jutaan game manusia. Dia tunjuk apa pemain rating tu biasa main, dan pilihan Stockfish ditunjuk sekali.'
+      : 'Stockfish 19 ialah enjin catur paling kuat. Kira paling tepat, tapi tak terangkan kenapa.';
     $('#oppDesc').textContent = oppKind === 'claude'
       ? 'Claude main macam member: kadang bijak, kadang tersilap. Setiap move dia ambil beberapa saat.'
+      : oppKind === 'maia'
+      ? 'Lawan paling realistik untuk berlatih: dia buat silap macam manusia, bukan pilih move rawak.'
       : 'Pilih kekuatan Stockfish kat bawah.';
     $('#tierDesc').textContent = TIER_DESC[ctier];
     $('#setupCard').hidden = !editing;
@@ -2130,16 +2306,21 @@ function App(){
       $('#words').textContent = s && s.move ? (s.sebab || describe(s.move))
         : s && s.status === 'error' ? s.err
         : 'Claude tengah fikir. Boleh ambil beberapa saat.';
-      var scc = info && info.score;
-      $('#verdict').innerHTML = scc ? esc(verdict(scc)) : '&nbsp;';
-      $('#evalnum').textContent = scc ? evalText(scc) : '';
-      $('#evalFill').style.width = evalPct(scc).toFixed(1) + '%';
-      $('#pv').innerHTML = best
-        ? (s && s.move && s.move.san === best.san ? 'Stockfish setuju: <span>' + esc(best.san) + '</span>' : 'Stockfish pilih: <span>' + esc(best.san) + '</span>' + (pvLine.length > 1 ? ' · ' + esc(pvLine.slice(1).map(function(m){ return m.san; }).join(' ')) : ''))
-        : (thinking ? 'Stockfish tengah kira…' : '');
-      var cb = $('#playBest');
-      cb.disabled = !(s && s.move);
-      cb.textContent = s && s.move ? 'Main ' + s.move.san : 'Main move ni';
+      renderSfCompare(s && s.move);
+      return;
+    }
+    if (useMaiaBrain()){
+      var ms = maiaSug && maiaSug.fen === game.fen() ? maiaSug : null;
+      card.classList.remove('is-thinking');
+      $('#kick').textContent = 'Cadangan Maia ' + maiaElo;
+      $('#status').textContent = Maia.state === 'loading' ? (Maia.total ? 'muat ' + Math.min(99, Math.round(100 * Maia.got / Maia.total)) + '%' : 'muat…')
+        : ms && ms.status === 'loading' ? 'fikir…' : '';
+      $('#san').textContent = ms && ms.move ? ms.move.san : '· · ·';
+      $('#words').textContent = ms && ms.move
+        ? pct(ms.prob) + ' pemain rating ' + maiaElo + ' main move ni.' + (ms.alts.length ? ' Pilihan lain: ' + ms.alts.map(function(a){ return a.san + ' (' + pct(a.p) + ')'; }).join(', ') + '.' : '')
+        : ms && ms.status === 'error' ? ms.err
+        : Maia.state === 'loading' ? maiaStatusText() : 'Maia tengah fikir…';
+      renderSfCompare(ms && ms.move);
       return;
     }
     card.classList.toggle('is-thinking', thinking);
@@ -2212,7 +2393,7 @@ function App(){
   function renderEngine(){
     var el = $('#engine');
     el.classList.remove('loading', 'ok');
-    if (Engine.kind === 'sf'){ el.classList.add('ok'); el.lastChild.textContent = 'Stockfish 10 sedia'; }
+    if (Engine.kind === 'sf'){ el.classList.add('ok'); el.lastChild.textContent = (Engine.name || 'Stockfish') + ' sedia'; }
     else if (Engine.kind === 'lite'){ el.lastChild.textContent = 'Stockfish tak dapat load. Guna enjin ringkas (lemah sikit).'; }
     else { el.classList.add('loading'); el.lastChild.textContent = 'Tengah load Stockfish…'; }
     renderSuggest();
@@ -2290,13 +2471,23 @@ function App(){
     var b = e.target.closest('button'); if (!b || b.dataset.brain === brain) return;
     brain = b.dataset.brain;
     if (sugCtl){ sugCtl.abort(); sugCtl = null; }
-    claudeSug = null;
+    claudeSug = null; maiaSug = null;
+    if (brain === 'maia') Maia.load().catch(function(){});
     update();
   });
   $('#oppSeg').addEventListener('click', function(e){
     var b = e.target.closest('button'); if (!b || b.dataset.opp === oppKind) return;
     oppKind = b.dataset.opp;
+    if (oppKind === 'maia') Maia.load().catch(function(){});
     if (oppTurn){ cancelPractice(); pruneReviews(); }
+    update();
+  });
+  $('#maiaSeg').addEventListener('click', function(e){
+    var b = e.target.closest('button'); if (!b) return;
+    if (Maia.state === 'error'){ Maia.load().catch(function(){}); maiaSug = null; }
+    var elo = +b.getAttribute('data-elo');
+    if (elo === maiaElo && Maia.state !== 'error') return;
+    maiaElo = elo; maiaSug = null;
     update();
   });
   $('#tierSeg').addEventListener('click', function(e){

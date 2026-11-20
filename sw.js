@@ -1,10 +1,13 @@
-// Catur Petang service worker: keeps the app and the Stockfish engine cached so it opens offline.
-var CACHE = 'catur-petang-v2';
+// Catur Petang service worker: keeps the app and Stockfish cached so it opens offline.
+// Maia's files (about 45 MB) are cached the first time Maia is used, not at install.
+var CACHE = 'catur-petang-v3';
 var FONTS = 'catur-petang-fonts-v1';
 var CORE = [
   './',
   'index.html',
   'chess.js',
+  'stockfish-19-lite-single.js',
+  'stockfish-19-lite-single.wasm',
   'stockfish.js',
   'manifest.webmanifest',
   'icons/apple-touch-icon.png',
